@@ -1,0 +1,17 @@
+re<!-- templates/no_result.html -->
+{% extends "base.html" %}
+{% block content %}
+    <div style="text-align: center; padding: 40px;">
+        <p style="color:red; font-weight: bold; font-size: 24px;">❌ 검색 결과가 없습니다.</p>
+        <button onclick="window.history.back()" style="
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #ff7a00;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        ">🔙 뒤로가기</button>
+    </div>
+{% endblock %}
