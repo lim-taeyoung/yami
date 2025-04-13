@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>대시보드</title>
-
-    <!-- ✅ Pretendard Variable 웹폰트 적용 -->
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-
 
     <style>
         :root {
@@ -53,7 +50,6 @@
             padding: 14px 24px;
         }
 
-        /* ✅ 공통 버튼 스타일 */
         button {
             background-color: var(--orange);
             color: rgb(0, 0, 0);
@@ -66,12 +62,11 @@
             font-family: 'Pretendard Variable', sans-serif;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         button:hover {
             background-color: #ec9494;
         }
 
-        /* ✅ 공통 입력창 스타일 */
         input[type="text"],
         input[type="password"],
         input[type="file"],
@@ -86,7 +81,6 @@
             box-sizing: border-box;
         }
 
-        /* ✅ 공통 카드 스타일 */
         .card {
             background-color: rgb(255, 0, 0);
             padding: 16px;
@@ -95,12 +89,10 @@
             margin-bottom: 20px;
         }
 
-        /* ✅ 공통 폼 그룹 */
         .form-group {
             margin-bottom: 12px;
         }
 
-        /* ✅ 공통 검색바 */
         .search-bar {
             display: flex;
             gap: 8px;
@@ -154,14 +146,12 @@
             background-color: #e2ddd9;
         }
 
-        /* ✅ 모바일 전용 숨김 */
         @media (max-width: 768px) {
             .mobile-hide {
                 display: none !important;
             }
         }
 
-        /* ✅ 폼 요소 반응형 레이아웃 */
         .form-section {
             display: flex;
             flex-wrap: wrap;
@@ -176,7 +166,6 @@
             min-width: 100px;
         }
 
-        /* ✅ 반응형 그리드 2x */
         .responsive-grid-2x {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -188,9 +177,56 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* ✅ 로딩 오버레이 스타일 */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: white;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body>
-    {% block content %}{% endblock %}
+
+    <!-- ✅ 로딩 오버레이 추가 -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div>⏳ 페이지 로딩 중입니다...</div>
+    </div>
+
+    <!-- ✅ 본문은 숨겨두고, 페이지 다 로딩되면 보여주기 -->
+    <div id="main-content" style="display: none;">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        window.addEventListener('load', function () {
+            document.getElementById("loading-overlay").style.display = "none";
+            document.getElementById("main-content").style.display = "block";
+        });
+    </script>
+
 </body>
 </html>
