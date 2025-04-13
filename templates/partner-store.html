@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set column_filter = column_filter if column_filter is not none else [] %}
+
+<h1>🏪 파트너매장 현황</h1>
+
+<form method="get" action="/partner-store" class="search-form">
+    <div class="search-form">
+        <label class="select-wrapper">
+            <select name="filter_column">
+                <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option> 
+                <option value="지사" {% if filter_column == "지사" %}selected{% endif %}>지사</option>
+                <option value="센터" {% if filter_column == "센터" %}selected{% endif %}>센터</option>
+                <option value="접점코드" {% if filter_column == "접점코드" %}selected{% endif %}>접점코드</option>
+            </select>
+        </label>
+        <input type="text" name="filter_value" placeholder="검색어 입력" value="{{ filter_value or '' }}">
+        <button type="submit">🔍 검색</button>
+        <button type="button" onclick="location.href='/main'">🏠 메인으로</button>
+    </div>
+
+    <fieldset style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 20px;">
+        <legend>콜론 보기 옵션</legend>
+        <label>
+            <input type="checkbox" name="column_filter" value="실적확인"
+                   onclick="handleCheckbox(this)"
+                   {% if "실적확인" in column_filter %}checked{% endif %}>
+            실적확인
+        </label>
+
+        <label>
+            <input type="checkbox" name="column_filter" value="파트너 정보"
+                   onclick="handleCheckbox(this)"
+                   {% if "파트너 정보" in column_filter %}checked{% endif %}>
+            파트너 정보
+        </label>
+
+        <label>
+            <input type="checkbox" name="column_filter" value="모두보기"
+                   onclick="handleCheckbox(this)"
+                   {% if "모두보기" in column_filter %}checked{% endif %}>
+            모두보기
+        </label>
+    </fieldset>
+</form>
+
+<hr>
+<div class="table-wrapper">
+  <div style="position: relative;">
+    {{ table_html|safe }}
+  </div>
+</div>
+
+<script>
+function handleCheckbox(clicked) {
+    const 실적확인 = document.querySelector('input[name="column_filter"][value="실적확인"]');
+    const 파트너정보 = document.querySelector('input[name="column_filter"][value="파트너 정보"]');
+    const 모두보기 = document.querySelector('input[name="column_filter"][value="모두보기"]');
+
+    if (clicked === 모두보기 && clicked.checked) {
+        실적확인.checked = false;
+        파트너정보.checked = false;
+    } else if (clicked === 실적확인 && clicked.checked) {
+        파트너정보.checked = false;
+        모두보기.checked = false;
+    } else if (clicked === 파트너정보 && clicked.checked) {
+        실적확인.checked = false;
+        모두보기.checked = false;
+    }
+}
+
+// 텍스트 길이를 고려해 연속성 여백 초기화
+function adjustStickyColumnWidths() {
+    const colIndices = [3, 4, 5, 6];
+    const table = document.querySelector(".table");
+    if (!table) return;
+
+    const rows = table.querySelectorAll("tr");
+    const widths = [];
+
+    colIndices.forEach((colIdx) => {
+        let maxWidth = 0;
+        rows.forEach(row => {
+            const cell = row.cells[colIdx - 1];
+            if (cell) {
+                const textLength = cell.textContent.trim().replace(/\s+/g, '').length;
+                const width = textLength * 10 + 40;
+                if (width > maxWidth) maxWidth = width;
+            }
+        });
+        widths.push(maxWidth);
+    });
+
+    let leftOffset = 0;
+    colIndices.forEach((colIdx, i) => {
+        const width = widths[i];
+        rows.forEach(row => {
+            const cell = row.cells[colIdx - 1];
+            if (cell) {
+                cell.style.minWidth = `${width}px`;
+                cell.style.maxWidth = `${width}px`;
+                cell.style.width = `${width}px`;
+                cell.style.left = `${leftOffset}px`;
+                cell.style.position = 'sticky';
+                cell.style.zIndex = 10;
+
+                if (cell.tagName === 'TH') {
+                    cell.style.background = '#f2f2f2';
+                } else {
+                    cell.style.background = '#fff';
+                }
+            }
+        });
+        leftOffset += width;
+    });
+}
+
+window.addEventListener("load", adjustStickyColumnWidths);
+</script>
+
+<style>
+.table th,
+.table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table th:nth-child(3),
+.table td:nth-child(3),
+.table th:nth-child(4),
+.table td:nth-child(4) {
+    padding-left: 0.1px !important;
+    padding-right: 0.1px !important;
+}
+
+.search-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    font-size: 28px;
+    width: 100%;
+}
+
+.search-form select,
+.search-form input[type="text"],
+.search-form button {
+    height: 60px;
+    font-size: 24px;
+    padding: 10px;
+    flex: 1 1 auto;
+}
+
+.select-wrapper {
+    flex: 2;
+    min-width: 150px;
+}
+
+.search-form input[type="text"] {
+    flex: 6;
+    min-width: 200px;
+}
+
+.search-form button {
+    flex: 2;
+    min-width: 120px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 20px;
+    border-top: 2px solid #333;
+}
+
+.table {
+    border-collapse: collapse;
+    min-width: 1000px;
+    width: max-content;
+    margin: auto;
+    font-size: 20px;
+    table-layout: fixed;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ccc;
+    padding: 1px 5px;
+    height: 32px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table th:nth-child(1), .table td:nth-child(1),
+.table th:nth-child(2), .table td:nth-child(2) {
+    display: none;
+}
+
+.table th {
+    background-color: #f2f2f2 !important;
+    color: #000;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.table tr.sum-row td {
+    background-color: #e0f7fa !important;
+    font-weight: bold !important;
+    color: #000 !important;
+}
+
+.table tr.sum-row td:nth-child(-n+6) {
+    color: transparent !important;
+}
+
+@media (max-width: 768px) {
+    .search-form {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .search-form > * {
+        flex: 1 1 100%;
+    }
+    .table {
+        font-size: 12px;
+    }
+    .table th,
+    .table td {
+        padding: 4px 6px;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🗕️ 일자별 무선</h1>
+
+<form method="get" action="/daily-wireless" class="search-form">
+    <label class="select-wrapper">
+        <select name="search_field">
+            <option value="사번" {% if search_field == "사번" %}selected{% endif %}>사번</option>
+            <option value="지사" {% if search_field == "지사" %}selected{% endif %}>지사</option>
+            <option value="센터" {% if search_field == "센터" %}selected{% endif %}>센터</option>
+            <option value="접점코드" {% if search_field == "접점코드" %}selected{% endif %}>접점코드</option>
+        </select>
+    </label>
+    <input type="text" name="search_value" placeholder="검색어 입력" value="{{ search_value or '' }}">
+    <button type="submit">🔍 검색</button>
+    <a href="/main"><button type="button">🏠 메인으로</button></a>
+</form>
+
+<hr>
+
+<div class="table-scroll-wrapper">
+    {{ table_html | safe }}
+</div>
+
+<style>
+.search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    font-size: 32px;
+}
+
+.search-form > * {
+    font-size: 28px;
+}
+
+.select-wrapper {
+    flex: 2;
+}
+
+.search-form select {
+    font-size: 26px;
+    height: 60px;
+    padding: 15px;
+}
+
+.search-form input[type="text"] {
+    font-size: 26px;
+    height: 60px;
+    padding: 15px;
+}
+.search-form button {
+    height: 60px;
+    padding: 10px;
+}
+
+.search-form input[type="text"] {
+    flex: 6;
+}
+
+.search-form button {
+    flex: 4;
+    font-size: 28px;
+}
+
+.table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-top: 2px solid #333;
+    margin-bottom: 20px;
+}
+
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 1000px;
+    width: max-content;
+    margin: 20px auto;
+    table-layout: auto;
+    font-size: 20px;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ccc;
+    padding: 4px 20px;
+    text-align: center;
+    white-space: nowrap;
+    background-clip: padding-box;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table th:nth-child(1),
+.table td:nth-child(1),
+.table th:nth-child(2),
+.table td:nth-child(2) {
+    display: none;
+}
+
+.table th {
+    background-color: #f2f2f2;
+    color: #000;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.table th:nth-child(3),
+.table th:nth-child(4),
+.table th:nth-child(5),
+.table th:nth-child(6) {
+    background-color: #f2f2f2;
+    position: sticky;
+    z-index: 3;
+}
+
+.table td:nth-child(3),
+.table td:nth-child(4),
+.table td:nth-child(5),
+.table td:nth-child(6) {
+    position: sticky;
+    z-index: 2;
+    background-color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+}
+
+.table td:nth-child(3) { left: 0; width: 120px; min-width: 120px; }
+.table td:nth-child(4) { left: 120px; width: 120px; min-width: 120px; }
+.table td:nth-child(5) { left: 240px; width: 120px; min-width: 120px; }
+.table td:nth-child(6) { left: 360px; width: 120px; min-width: 120px; }
+
+.table th:nth-child(3) { left: 0; width: 120px; min-width: 120px; }
+.table th:nth-child(4) { left: 120px; width: 120px; min-width: 120px; }
+.table th:nth-child(5) { left: 240px; width: 120px; min-width: 120px; }
+.table th:nth-child(6) { left: 360px; width: 120px; min-width: 120px; }
+
+.table tr.sum-row td {
+    background-color: #e3f2fd !important;
+    font-weight: bold !important;
+    color: #000;
+}
+
+.table tr.sum-row td:nth-child(-n+6) {
+    color: transparent !important;
+}
+
+.table tr:first-child td {
+    font-weight: bold;
+    background-color: #e3f2fd;
+}
+
+@media (max-width: 768px) {
+    .table-scroll-wrapper a {
+        padding: 0 10px;
+    }
+    .table th,
+    .table td {
+        padding: 10px 14px;
+        font-size: 24px;
+    }
+}
+</style>
+{% endblock %}

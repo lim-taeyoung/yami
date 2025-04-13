@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block content %}
+{% set type = type or "종합" %}
+
+<style>
+.dashboard-wrapper {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 10;
+    padding: 12px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.dashboard-title {
+    font-size: 32px;
+    font-weight: 1200;
+}
+
+.dashboard-header a button {
+    font-size: 32px;
+    font-weight: 600;
+    padding: 16px 24px;
+}
+
+.form-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.form-section select,
+.form-section input[type="text"],
+.form-section button {
+    font-size: 28px;
+    font-weight: 600;
+    padding: 16px;
+    flex: 1;
+    min-width: 0;
+}
+
+.fieldset-group {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+
+fieldset {
+    flex: 1;
+    min-width: auto;
+    border: 2px solid #999;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: #fff;
+    white-space: nowrap;
+}
+
+fieldset legend {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #ccc;
+}
+
+.fieldset-group label {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.fieldset-group input[type="checkbox"] {
+    transform: scale(1.6);
+    margin-right: 6px;
+}
+
+.dashboard-table-wrapper a {
+    overflow-x: auto;
+    width: 100%;
+    color: rgb(32, 9, 243);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.table {
+    width: auto;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.table th, .table td {
+    font-size: 20px;
+    font-weight: 600;
+    padding: 0 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+    color: #111;
+    border: 1px solid #b9b6b6;
+    background-clip: padding-box;
+    text-align: center;
+}
+
+.table th {
+    background-color: var(--orange);
+    color: rgb(0, 0, 0);
+    z-index: 5;
+}
+
+.table tr:first-child td {
+    background-color: #e0f7ff !important;
+}
+
+/* 고정 컬럼 처리 */
+.table td:nth-child(1), .table th:nth-child(1) {
+    position: sticky;
+    left: 0;
+    background-color: var(--orange);
+    z-index: 5;
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+    text-align: center;
+}
+
+.table td:nth-child(2), .table th:nth-child(2) {
+    position: sticky;
+    left: 50px;
+    background-color: var(--orange) ;
+    z-index: 5;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    text-align: center;
+}
+
+.table td:nth-child(3), .table th:nth-child(3) {
+    position: sticky;
+    left: 110px;
+    background-color: var(--orange);
+    z-index: 5;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    text-align: center;
+}
+
+.table td:nth-child(4), .table th:nth-child(4) {
+    position: sticky;
+    left: 250px;
+    background-color: var(--orange) ;
+    z-index: 5;
+    min-width: auto;
+    max-width: none;
+    width: auto;
+    text-align: center;
+}
+.table td:nth-child(1),
+.table td:nth-child(2),
+.table td:nth-child(3),
+.table td:nth-child(4) {
+    background-color: white !important;
+}
+
+
+.hidden-col {
+    display: none !important;
+}
+</style>
+
+<div class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <div class="dashboard-title">📊 유무선 종합 현황 </div>
+        <a href="/main"><button>🏠 메인으로</button></a>
+    </div>
+
+    <form method="get" action="/dashboard">
+        <input type="hidden" name="type" value="{{ type or '종합' }}">
+        <div class="form-section">
+            <select name="search_column">
+                <option value="사번" {% if search_column == '사번' %}selected{% endif %}>사번</option>
+                <option value="지사" {% if search_column == '지사' %}selected{% endif %}>지사</option>
+                <option value="센터" {% if search_column == '센터' %}selected{% endif %}>센터</option>
+                <option value="접점코드" {% if search_column == '접점코드' %}selected{% endif %}>접점코드</option>
+            </select>
+
+            <input type="text" name="search_value" placeholder="검색어 입력" value="{{ search_value or '' }}">
+            <button type="submit">🔍 검색하기</button>
+            <button type="button" onclick="uncheckAll()">🔄 체크 해제</button>
+        </div>
+
+        <div class="fieldset-group">
+            {% for group in [
+                ["🍮 무선", ["일반후불", "010", "MNP", "기변", "중고", "5G", "3G/LTE"]],
+                ["🍮 무선 기타", ["100K이상", "초이스4종", "S25", "AIP16"]],
+                ["📞 유선", [("유선신규 I+T", "신규 I+T"), ("유선신규 I", "신규 I"), ("유선신규 T", "신규 T"),
+                           ("유선약갱 I+T", "약갱 I+T"), ("유선약갱 I", "약갱 I"), ("유선약갱 T", "약갱 T")]],
+                ["🔀 MIT(M)", [("MIT(M) 합계", "합계"), ("MIT(M) 신규", "신규"), ("MIT(M) 약갱", "약갱")]],
+                ["🔀 MIT(I)", [("MIT(I) 합계", "합계"), ("MIT(I) 신규", "신규"), ("MIT(I) 약갱", "약갱"), ("신동", "신동"), ("신동률", "신동률")]],
+                ["📊 최근 3개월", ["일반후불(M,대)", "유선신규(M,대)"]]
+            ] %}
+            <fieldset>
+                <legend>{{ group[0] }}</legend>
+                {% for col in group[1] %}
+                    {% if col is string %}
+                        <label><input type="checkbox" name="columns" value="{{ col }}" {% if col in columns %}checked{% endif %}> {{ col }}</label>
+                    {% else %}
+                        <label><input type="checkbox" name="columns" value="{{ col[0] }}" {% if col[0] in columns %}checked{% endif %}> {{ col[1] }}</label>
+                    {% endif %}
+                {% endfor %}
+            </fieldset>
+            {% endfor %}
+        </div>
+    </form>
+    <hr>
+    <div class="dashboard-table-wrapper table-wrapper">
+        {{ table_html | safe }}
+    </div>
+</div>
+
+<script>
+function uncheckAll() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+</script>
+
+{% endblock %}

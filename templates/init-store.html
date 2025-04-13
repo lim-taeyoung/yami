@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 style="text-align:center;">📥 접점관리 초기 업로드</h1>
+
+<div style="text-align: center; margin-top: 40px;">
+    <form method="post" action="/init-store" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx" required>
+        <br><br>
+        <button type="submit" style="padding: 10px 20px; font-size: 16px;">✅ 업로드</button>
+    </form>
+    <p style="color: gray; margin-top: 20px;">※ '접점관리' 시트를 포함한 엑셀 파일만 등록 가능합니다.</p>
+</div>
+{% endblock %}

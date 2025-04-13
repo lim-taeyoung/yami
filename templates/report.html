@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 17px auto;
+        table-layout: fixed;
+        color: #111111;
+        font-size: 24px;
+        font-weight: 900;
+    }
+    th, td {
+        border: 1px solid #000000;
+        padding: 10px 12px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    th {
+        background-color: var(--orange);
+        color: rgb(0, 0, 0);
+    }
+    td {
+        background-color: #ffffff;
+    }
+    h1 {
+        text-align: center;
+        margin-top: 17px;
+        font-size: 45px;
+        font-weight: 900;
+        color: #111;
+    }
+    .highlight {
+        background-color: #ffffff !important;
+        color: #000000;
+    }
+    .top-right-button {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+    }
+    .top-right-button button {
+        padding: 20px 24px;
+        font-size: 22px;
+        font-weight: 900;
+        background-color: var(--orange);
+        color: rgb(0, 0, 0);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .section-title {
+        font-size: 26px;
+        font-weight: 900;
+        text-align: left;
+        margin-top: 40px;
+        margin-bottom: 10px;
+    }
+    .group-label {
+        background-color: #fff3e0;
+        font-weight: 900;
+    }
+    .recent-header {
+        background-color: var(--orange);
+        color: #000;
+    }
+</style>
+
+<div class="top-right-button">
+    <a href="/main"><button>🏠 메인으로</button></a>
+</div>
+
+<h1>📄 접점 상세 정보</h1>
+
+<!-- Section 1 -->
+<div class="section-title">1) 접점 정보</div>
+<table>
+    <tr><th style="width: 20%;">접점코드</th><td style="width: 30%;">{{ get("접점코드") }}</td><th style="width: 20%;">접점명</th><td style="width: 30%;">{{ get("접점명") }}</td></tr>
+    <tr><th>지사</th><td>{{ get("지사") }}</td><th>센터</th><td>{{ get("센터") }}</td></tr>
+    <tr><th>담당사번</th><td>{{ get("사번") }}</td><th>담당자</th><td>{{ get("이름") }}</td></tr>
+    <tr>
+        <th>주소</th>
+        <td colspan="3">
+            <span id="address-text">{{ get("주소") }}</span>
+            <button onclick="copyAddress()" style="margin-left: 10px; padding: 6px 12px; font-size: 15px; cursor: pointer;">
+              📋 주소복사
+            </button>
+        </td>
+    </tr>
+</table>
+
+<!-- Section 2 -->
+<div class="section-title">2) 당월 유무선 실적</div>
+<table>
+    <tr><th colspan="8">📶 무선</th></tr>
+    <tr>
+        <th>합계</th><td>{{ get("일반후불") }}</td><th>010</th><td>{{ get("010") }}</td><th>MNP</th><td>{{ get("MNP") }}</td><th>기변</th><td>{{ get("기변") }}</td>
+    </tr>
+    <tr>
+        <th>5G</th><td>{{ get("5G") }}</td><th>3G/LTE</th><td>{{ get("3G/LTE") }}</td><th>중고</th><td>{{ get("중고") }}</td><th>2nd</th><td>{{ get("2nd") }}</td>
+    </tr>
+    <tr>
+        <th>초이스4종</th><td>{{ get("초이스4종") }}</td><th>100K이상</th><td>{{ get("100K이상") }}</td><th>S25 류</th><td>{{ get("S25") }}</td><th>AIP16 류</th><td>{{ get("AIP16") }}</td>
+    </tr>
+</table>
+
+<table>
+    <tr><th colspan="8">📞 유선</th></tr>
+    <tr>
+        <th colspan="2">유선 신규</td><th colspan="2">유선 약갱</td><th colspan="2">MIT(모바일기준)</td><th colspan="2">MIT(인터넷기준)</td>
+    </tr>
+    <tr>
+        <th>합계</th><td>{{ get("유선신규 I+T") }}</td><th>합계</th><td>{{ get("유선약갱 I+T") }}</td><th>합계</th><td>{{ get("MIT(M) 합계") }}</td><th>합계</th><td>{{ get("MIT(I) 합계") }}</td>
+    </tr>
+    <tr>
+        <th>인터넷</th><td>{{ get("유선신규 I") }}</td><th>인터넷</th><td>{{ get("유선약갱 I") }}</td><th>신규</th><td>{{ get("MIT(M) 신규") }}</td><th>신규</th><td>{{ get("MIT(I) 신규") }}</td>
+    </tr>
+    <tr>
+        <th>TV</th><td>{{ get("유선신규 T") }}</td><th>TV</th><td>{{ get("유선약갱 T") }}</td><th>약갱</th><td>{{ get("MIT(M) 약갱") }}</td><th>약갱</th><td>{{ get("MIT(I) 약갱") }}</td>
+    </tr>
+</table>
+
+<!-- Section 3 -->
+<div class="section-title">3) 최근 3개월 실적</div>
+<table>
+    <tr class="recent-header">
+        <th>무선</th><th>M-3</th><th>M-2</th><th>M-1</th><th>유선신규</th><th>M-3</th><th>M-2</th><th>M-1</th>
+    </tr>
+    <tr>
+        <td class="group-label">m&amp;s</td>
+        <td class="highlight">{{ get("M-3 무선(M)") }}</td><td class="highlight">{{ get("M-2 무선(M)") }}</td><td class="highlight">{{ get("M-1 무선(M)") }}</td>
+        <td class="group-label">m&amp;s</td>
+        <td class="highlight">{{ get("M-3 유선신규(M)") }}</td><td class="highlight">{{ get("M-2 유선신규(M)") }}</td><td class="highlight">{{ get("M-1 유선신규(M)") }}</td>
+    </tr>
+    <tr>
+        <td class="group-label">대리점</td>
+        <td class="highlight">{{ get("M-3 무선(대)") }}</td><td class="highlight">{{ get("M-2 무선(대)") }}</td><td class="highlight">{{ get("M-1 무선(대)") }}</td>
+        <td class="group-label">대리점</td>
+        <td class="highlight">{{ get("M-3 유선신규(대)") }}</td><td class="highlight">{{ get("M-2 유선신규(대)") }}</td><td class="highlight">{{ get("M-1 유선신규(대)") }}</td>
+    </tr>
+</table>
+
+<script>
+    function copyAddress() {
+        const text = document.getElementById('address-text')?.innerText;
+        if (!text) return alert("주소가 비어있습니다.");
+    
+        // create hidden textarea
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+    
+        alert("주소가 복사되었습니다!");
+    }
+    </script>
+
+<!-- Section 4: 모델 -->
+<div class="section-title">4) 판매모델별 실적</div>
+<table style="table-layout: fixed; width: 100%;">
+    <thead>
+        <tr>
+            <th style="width: auto;">모델</th>
+            <th style="width: 80px;">실적</th>
+            <th style="width: auto;">모델</th>
+            <th style="width: 80px;">실적</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in range(0, model_data|length, 2) %}
+        <tr>
+            {% for j in range(2) %}
+            {% set item = model_data[i + j] if i + j < model_data|length else None %}
+            {% if item %}
+            <td style="width: auto;">{{ item["모델"] }}</td>
+            <td style="width: 80px;">{{ item["합계"] }}</td>
+            {% else %}
+            <td colspan="2"></td>
+            {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+{% endblock %}

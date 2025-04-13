@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    .container {
+        text-align: center;
+        margin-top: 60px;
+    }
+
+    h1 {
+        font-size: 60px;  /* ✔️ 타이틀 5배 확대 */
+        font-weight: bold;
+        margin-bottom: 40px;
+    }
+
+    input {
+        padding: 40px 20px;  /* ✅ 세로(padding-top/bottom) = 40px, 좌우 = 20px */
+        font-size: 32px;
+        width: 80%;
+        max-width: 400px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 3px solid #ccc;
+    }
+
+    .search-button {
+        padding: 12px 40px;
+        font-size: 32px;
+        background-color: var(--orange);  /* ✔️ 오렌지색 */
+        color: rgb(0, 0, 0);
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 16px;
+    }
+
+    .search-button:hover {
+        background-color: #e66f00;
+    }
+
+    .back-button {
+        margin-top: 24px;
+        font-size: 28px;
+        padding: 14px 36px;
+        background-color: var(--orange);  /* ✔️ 오렌지색 */
+        color: rgb(0, 0, 0);
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .back-button:hover {
+        background-color: #e66f00;
+    }
+</style>
+
+<div class="container">
+    <h1>📍 접점별 현황</h1>
+
+    <form method="get" action="/report">
+        <input type="text" name="code" placeholder="접점코드 입력" required>
+        <br>
+        <button type="submit" class="search-button">검색</button>
+    </form>
+
+    <br>
+
+    <a href="/main"><button class="back-button">🏠 메인으로</button></a>
+</div>
+
+{% endblock %}
