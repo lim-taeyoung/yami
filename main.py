@@ -232,6 +232,11 @@ async def view_users(request: Request, db: Session = Depends(get_db)):
             <tr><th>사번</th><th>이름</th><th>지사</th><th>센터</th><th>직책</th><th>권한</th><th>초기 로그인 유무</th></tr>
             {table_rows}
         </table>
+        <div style="text-align: center; margin-top: 20px;">
+            <form method="post" action="/admin/reset-store" onsubmit="return confirm('⚠ 접점관리 데이터를 초기화하시겠습니까?')">
+                <button type="submit" style="background-color: #ff7043; color: white;">🧹 접점관리 초기화</button>
+        </form>
+        </div>
         <div style="text-align: center; margin-top: 30px;">
             <form method="post" action="/admin/reset-data" onsubmit="return confirm('⚠ 정말 초기화하시겠습니까?')">
                 <button type="submit" style="background-color: #f44336; color: white;">📂 실적 데이터 초기화</button>
@@ -262,7 +267,17 @@ async def reset_excel_data(db: Session = Depends(get_db)):
         return HTMLResponse("<script>alert('✅ 실적 데이터 초기화 완료!'); location.href='/admin/users?username=admin';</script>")
     except Exception as e:
         return HTMLResponse(f"<script>alert('❌ 초기화 실패: {e}'); location.href='/admin/users?username=admin';</script>")
-        
+
+@app.post("/admin/reset-store")
+async def reset_store_data(db: Session = Depends(get_db)):
+    try:
+        db.query(StoreData).delete()
+        db.commit()
+        return HTMLResponse("<script>alert('✅ 접점관리 데이터 초기화 완료!'); location.href='/admin/users?username=admin';</script>")
+    except Exception as e:
+        return HTMLResponse(f"<script>alert('❌ 초기화 실패: {e}'); location.href='/admin/users?username=admin';</script>")
+
+
 # ✅ 엑셀 업로드로 사용자 계정 등록
 @app.post("/admin/upload-users")
 async def upload_users(file: UploadFile = File(...), db: Session = Depends(get_db)):
