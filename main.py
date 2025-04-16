@@ -157,6 +157,11 @@ def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
     print("✅ 전체 매핑된 수:", len(mapped_df))
     print("❌ 매핑 실패 수:", len(df) - len(mapped_df))
 
+
+    # 실패한 접점코드 목록 추출
+    unmapped_codes = df.loc[df["사번"] == "", "접점코드"].unique()
+    print("❌ 매핑 실패한 접점코드 예시:", unmapped_codes[:10])
+    
     return df
 
 
