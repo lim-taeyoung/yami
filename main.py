@@ -424,7 +424,7 @@ async def dashboard(
     df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
     df.columns = df.columns.str.strip()
 
-   store_entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    store_entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
     if not store_entry:
         print("⚠️ 접점관리 데이터가 없습니다.")
     else:
