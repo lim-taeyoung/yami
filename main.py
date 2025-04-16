@@ -435,8 +435,8 @@ async def dashboard(
         df["접점코드"] = df["접점코드"].astype(str).str.strip()
         store_df["접점코드"] = store_df["접점코드"].astype(str).str.strip()
 
-    # ✅ 병합: 접점코드 기준으로 사번/이름 추가
-    df = df.merge(store_df[["접점코드", "사번", "이름"]], on="접점코드", how="left")
+        # ✅ 병합: 접점코드 기준으로 사번/이름 추가
+        df = df.merge(store_df[["접점코드", "사번", "이름"]], on="접점코드", how="left")
 
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
