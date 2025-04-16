@@ -425,18 +425,21 @@ async def dashboard(
     df.columns = df.columns.str.strip()
 
     store_entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
-    if not store_entry:
-        print("⚠️ 접점관리 데이터가 없습니다.")
-    else:
-        # 접점관리 데이터 JSON → DataFrame 변환
-        store_df = pd.read_json(BytesIO(store_entry.data.encode("utf-8")))
+    if "접점코드" in df.columns:
+        df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
 
-        # 접점코드 컬럼 정제 (공백 제거 + 문자형 변환)
-        df["접점코드"] = df["접점코드"].astype(str).str.strip()
-        store_df["접점코드"] = store_df["접점코드"].astype(str).str.strip()
+        code_map = get_code_to_user_mapping(db)
 
-        # ✅ 병합: 접점코드 기준으로 사번/이름 추가
-        df = df.merge(store_df[["접점코드", "사번", "이름"]], on="접점코드", how="left")
+        if "사번" not in df.columns:
+            df["사번"] = ""
+        if "이름" not in df.columns:
+            df["이름"] = ""
+
+        mapped = df["접점코드"].map(code_map).dropna()
+        mapped_df = pd.DataFrame(mapped.tolist(), index=mapped.index)
+
+        df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
+        df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
 
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
