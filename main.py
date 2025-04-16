@@ -32,7 +32,7 @@ app.add_middleware(SessionMiddleware, secret_key="supersecret123!@#")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
-
+df = apply_user_mapping(df, db)
 
 # ✅ 데이터베이스 설정
 DATABASE_URL = "sqlite:///./excel_data.db"
@@ -117,6 +117,50 @@ def get_code_to_user_mapping(db: Session):
     df = df.drop_duplicates(subset="접점코드", keep="first")  # ✅ 중복 제거
 
     return df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
+
+def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
+    from io import BytesIO
+
+    # 최신 접점관리 데이터 가져오기
+    entry = db.query(ExcelData).filter(ExcelData.sheet_name == "접점관리").order_by(ExcelData.id.desc()).first()
+    if not entry:
+        print("⚠ 접점관리 데이터 없음")
+        return df
+
+    # 접점관리 엑셀 → 데이터프레임
+    code_df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    code_df["접점코드"] = code_df["접점코드"].astype(str).str.strip().str.upper().str.replace(".0", "", regex=False)
+    code_df["사번"] = code_df["사번"].astype(str).str.strip()
+    code_df["이름"] = code_df["이름"].astype(str).str.strip()
+    code_df = code_df.drop_duplicates(subset="접점코드")
+
+    # 매핑용 딕셔너리
+    code_map = code_df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
+
+    # 실적 데이터 접점코드 정제
+    df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper().str.replace(".0", "", regex=False)
+
+    # 사번/이름 컬럼 미리 확보
+    if "사번" not in df.columns:
+        df["사번"] = ""
+    if "이름" not in df.columns:
+        df["이름"] = ""
+
+    # 매핑
+    mapped = df["접점코드"].map(code_map).dropna()
+    mapped_df = pd.DataFrame(mapped.tolist(), index=mapped.index)
+
+    df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
+    df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
+
+    # 디버깅 출력
+    print("🧪 접점코드 매핑 완료")
+    print("✅ 전체 매핑된 수:", len(mapped_df))
+    print("❌ 매핑 실패 수:", len(df) - len(mapped_df))
+
+    return df
+
+
 
 
 # ✅ 🔐 로그인 페이지
