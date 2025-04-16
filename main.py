@@ -133,6 +133,16 @@ def get_code_to_user_mapping(db: Session):
     print("🧪 접점코드 매핑 딕셔너리 생성 완료:", len(mapping), "개")
 
     return mapping
+    
+def save_unmapped_codes_to_file(unmapped_codes: list[str]):
+    save_path = "static/unmapped_codes.txt"
+    os.makedirs("static", exist_ok=True)
+    with open(save_path, "w", encoding="utf-8") as f:
+        for code in unmapped_codes:
+            f.write(f"{code}\n")
+    print(f"📁 매핑 실패 코드 저장됨: {save_path}")
+
+
 
 def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
     from io import BytesIO
@@ -543,6 +553,7 @@ async def dashboard(
         for code in unmapped_codes[:10]:
             print(f"❌ 사번 없음 → {repr(code)}")
 
+        save_unmapped_codes_to_file(unmapped_codes)
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
     mapped_columns = {
