@@ -32,7 +32,6 @@ app.add_middleware(SessionMiddleware, secret_key="supersecret123!@#")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
-df = apply_user_mapping(df, db)
 
 # ✅ 데이터베이스 설정
 DATABASE_URL = "sqlite:///./excel_data.db"
@@ -497,6 +496,8 @@ async def dashboard(
     df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
     df.columns = df.columns.str.strip()
 
+    df = apply_user_mapping(df, db)
+    
     store_entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
     if "접점코드" in df.columns:
         df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
