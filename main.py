@@ -113,26 +113,23 @@ def get_code_to_user_mapping(db: Session):
 
     df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
 
-    # ✅ 접점코드, 사번, 이름만 추출
     df = df[["접점코드", "사번", "이름"]].dropna(subset=["접점코드"])
-
-    # ✅ 전처리: 문자열 처리 및 공백 제거
     df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
     df["사번"] = df["사번"].astype(str).str.strip()
     df["이름"] = df["이름"].astype(str).str.strip()
 
-    # ✅ 사번이 없는 행 제거 (여기서 핵심!)
+    # ✅ 1. 사번이 없는 행 먼저 제거 (여기 핵심!)
     df = df[df["사번"] != ""]
 
-    # ✅ 중복 제거: 접점코드 기준으로 가장 첫 사번/이름만 유지
+    # ✅ 2. 중복 제거 - 사번 있는 것 중에서 접점코드 기준 하나만
     df = df.drop_duplicates(subset="접점코드", keep="first")
 
-    # ✅ 매핑 딕셔너리 생성
+    # ✅ 3. 매핑 딕셔너리 반환
     mapping = df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
 
-    print("🧪 접점코드 매핑 딕셔너리 생성 완료:", len(mapping), "개")
-
+    print(f"✅ 접점코드 매핑 딕셔너리 생성: {len(mapping)}개")
     return mapping
+
     
 def save_unmapped_codes_to_file(unmapped_codes: list[str]):
     save_path = "static/unmapped_codes.txt"
