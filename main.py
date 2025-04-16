@@ -67,21 +67,19 @@ class StoreData(Base):
 
 class BoardMessage(Base):
     __tablename__ = "board_messages"
-
     id = Column(Integer, primary_key=True, index=True)
-    user = Column(String)
+    user = Column(String(100))
     text = Column(Text)
-    time = Column(String)
-    image_filenames = Column(Text)  # ✅ 다중 이미지 저장 (JSON 문자열)
+    time = Column(String(20))
+    image_filenames = Column(Text)
 
 class BoardReply(Base):
     __tablename__ = "board_reply"
-
-    id = Column(Integer, primary_key=True)
-    message_id = Column(Integer, ForeignKey("board_messages.id"))  # ⚠️ 정확한 테이블명 확인
-    user = Column(String)
-    text = Column(String)
-    time = Column(String)
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("board_messages.id"))
+    user = Column(String(100))
+    text = Column(Text)
+    time = Column(String(20))
 
 
 class Store(Base):
@@ -575,9 +573,6 @@ async def dashboard(
     })
 
 
-# 임시 메시지 저장소 (배포 시 DB 또는 파일로 변경 가능)
-messages = []  # 리스트 안에 dict 구조로 저장
-
 # ✅ 한마디 게시판 메인 페이지
 
 
@@ -591,32 +586,29 @@ async def board_page(
     PAGE_SIZE = 15
     total_count = db.query(BoardMessage).count()
     total_pages = (total_count + PAGE_SIZE - 1) // PAGE_SIZE
-    page = max(1, min(page, total_pages))  # 페이지 범위 제한
+    page = max(1, min(page, total_pages))
 
     offset = (page - 1) * PAGE_SIZE
     messages = db.query(BoardMessage)\
-                 .order_by(BoardMessage.id.desc())\
-                 .offset(offset)\
-                 .limit(PAGE_SIZE)\
-                 .all()
-
-    for msg in messages:
-        msg.image_list = json.loads(msg.image_filenames) if msg.image_filenames else []
+        .order_by(BoardMessage.id.desc())\
+        .offset(offset)\
+        .limit(PAGE_SIZE)\
+        .all()
 
     for msg in messages:
         msg.image_list = json.loads(msg.image_filenames) if msg.image_filenames else []
         msg.replies = db.query(BoardReply).filter_by(message_id=msg.id).all()
-
 
     return templates.TemplateResponse("board.html", {
         "request": request,
         "messages": messages,
         "page": page,
         "total_pages": total_pages,
-        "total_count": total_count,  # ✅ 넘버링을 위한 변수 추가
+        "total_count": total_count
     })
 
-# ✅ 메시지 등록 + 이미지 최대 5장까지
+
+# ✅ 게시글 등록 (최대 이미지 5장)
 @app.post("/board/message")
 async def post_message(
     request: Request,
@@ -630,7 +622,7 @@ async def post_message(
 
     os.makedirs("static/board_images", exist_ok=True)
 
-    for image in images[:5]:  # 최대 5장 제한
+    for image in images[:5]:
         if image.filename:
             clean_time = now.replace(":", "-").replace(" ", "_")
             safe_name = f"{clean_time}_{image.filename}"
@@ -648,7 +640,7 @@ async def post_message(
     db.commit()
     return RedirectResponse(url="/board", status_code=303)
 
-# ✅ 메시지 삭제
+# ✅ 게시글 삭제 + 이미지 삭제
 @app.post("/board/delete")
 async def delete_message(msg_id: int = Form(...), db: Session = Depends(get_db)):
     message = db.query(BoardMessage).filter(BoardMessage.id == msg_id).first()
@@ -663,31 +655,25 @@ async def delete_message(msg_id: int = Form(...), db: Session = Depends(get_db))
         db.commit()
     return RedirectResponse(url="/board", status_code=303)
 
-# ✅ 댓글 등록 처리 (임시 저장 방식 유지)
-messages = []  # 임시 댓글 저장용
 
+# ✅ 댓글 등록
 @app.post("/board/reply")
 async def post_reply(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-
-    # 디버깅 로그
-    print("🔍 받은 form:", dict(form))
-
     message_id_raw = form.get("message_id")
     user = form.get("user")
     reply = form.get("reply")
 
-    # 필수값 누락 체크
     if not message_id_raw or not user or not reply:
         return HTMLResponse(
-            f"<h3>❌ 댓글 등록 실패: 필수 입력 누락 (message_id={message_id_raw}, user={user}, reply={reply})</h3>",
+            f"<h3>❌ 댓글 등록 실패: 필수 입력 누락</h3>",
             status_code=400
         )
 
     try:
         message_id = int(message_id_raw)
     except Exception as e:
-        return HTMLResponse(f"<h3>❌ 댓글 등록 실패: {e} (message_id={message_id_raw})</h3>", status_code=400)
+        return HTMLResponse(f"<h3>❌ 댓글 등록 실패: {e}</h3>", status_code=400)
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     db.add(BoardReply(
