@@ -164,38 +164,10 @@ def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
 
 
 
-# ✅ 🔐 로그인 페이지
+# ✅ 로그인 페이지
 @app.get("/", response_class=HTMLResponse)
-async def login_page():
-    return """
-    <html>
-    <head>
-        <style>
-            .login-container {
-                text-align: center;
-                margin-top: 50px;
-            }
-            input, button {
-                margin: 10px;
-                padding: 10px;
-                font-size: 16px;
-                width: 250px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="login-container">
-            <h1>🔐 로그인</h1>
-            <form method="post" action="/login">
-                <input type="text" name="username" placeholder="아이디" required><br>
-                <input type="password" name="password" placeholder="비밀번호" required><br>
-                <button type="submit">로그인</button>
-            </form>
-            <p style="color: gray;">등록된 계정으로 로그인하세요.</p>
-        </div>
-    </body>
-    </html>
-    """
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/upload-main-image")
 async def upload_main_image(main_image: UploadFile = File(...)):
@@ -784,10 +756,9 @@ COLUMN_MAPPING = {
 from fastapi import Query
 from starlette.responses import HTMLResponse
 
-
 @app.get("/report", response_class=HTMLResponse)
 async def render_report(request: Request, code: str = Query(...), db: Session = Depends(get_db)):
-    # ✅ 종합현황 시트에서 기본 접점정보 가져오기
+    # ✅ 종합현황 데이터
     data_entry = db.query(ExcelData).filter(
         ExcelData.sheet_name == "종합현황"
     ).order_by(ExcelData.id.desc()).first()
@@ -796,15 +767,21 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
         return HTMLResponse("<h3>❌ 종합현황 데이터가 없습니다.</h3>")
 
     df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
-    if code not in df["접점코드"].astype(str).values:
+    df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
+
+    if code not in df["접점코드"].values:
         return HTMLResponse("<h3>❌ 해당 접점코드가 존재하지 않습니다.</h3>")
 
-    row = df[df["접점코드"].astype(str) == code].iloc[0]
+    row = df[df["접점코드"] == code].iloc[0]
 
     def get(col):
         return row[col] if col in row else "-"
 
-    # ✅ 접점별 판매모델 데이터 가져오기
+    # ✅ 사번/이름 매핑 적용 (StoreData 기준)
+    code_map = get_code_to_user_mapping(db)
+    user_info = code_map.get(code.upper(), {"사번": "-", "이름": "-"})
+
+    # ✅ 접점별 판매모델
     model_entry = db.query(ExcelData).filter(
         ExcelData.sheet_name == "접점별 판매모델"
     ).order_by(ExcelData.id.desc()).first()
@@ -812,7 +789,7 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
     model_data = []
     if model_entry:
         model_df = pd.read_json(BytesIO(model_entry.data.encode("utf-8")))
-        model_df = model_df[model_df["접점코드"].astype(str).str.lower() == code.lower()]
+        model_df = model_df[model_df["접점코드"].astype(str).str.upper() == code.upper()]
         if not model_df.empty:
             model_df = model_df[["모델", "합계", "010", "MNP", "기변"]].fillna(0)
             model_df = model_df.groupby("모델", as_index=False).sum(numeric_only=True)
@@ -822,7 +799,8 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
     return templates.TemplateResponse("report.html", {
         "request": request,
         "get": get,
-        "model_data": model_data
+        "model_data": model_data,
+        "user_info": user_info  # 👉 사번/이름 추가로 넘김
     })
 
 
