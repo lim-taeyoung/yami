@@ -107,27 +107,27 @@ def get_db():
         db.close()
 
 def get_code_to_user_mapping(db: Session):
-    entry = db.query(ExcelData).filter(ExcelData.sheet_name == "접점관리").order_by(ExcelData.id.desc()).first()
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
     if not entry:
         return {}
 
     df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
-
     df = df[["접점코드", "사번", "이름"]].dropna(subset=["접점코드"])
     df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
     df["사번"] = df["사번"].astype(str).str.strip()
     df["이름"] = df["이름"].astype(str).str.strip()
 
-    # ✅ 1. 사번이 없는 행 먼저 제거 (여기 핵심!)
     df = df[df["사번"] != ""]
-
-    # ✅ 2. 중복 제거 - 사번 있는 것 중에서 접점코드 기준 하나만
     df = df.drop_duplicates(subset="접점코드", keep="first")
 
-    # ✅ 3. 매핑 딕셔너리 반환
-    mapping = df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
+    # ✅ 딱 하나 남긴 디버깅
+    test_code = "PZF0000803"
+    if test_code in df["접점코드"].values:
+        print(f"✅ StoreData에 '{test_code}' 있음")
+    else:
+        print(f"❌ StoreData에 '{test_code}' 없음")
 
-    print(f"✅ 접점코드 매핑 딕셔너리 생성: {len(mapping)}개")
+    mapping = df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
     return mapping
 
     
@@ -141,54 +141,26 @@ def save_unmapped_codes_to_file(unmapped_codes: list[str]):
 
 
 
-def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
-    from io import BytesIO
 
-    # 최신 접점관리 데이터 가져오기
-    entry = db.query(ExcelData).filter(ExcelData.sheet_name == "접점관리").order_by(ExcelData.id.desc()).first()
-    if not entry:
-        print("⚠ 접점관리 데이터 없음")
+def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
+    if "접점코드" not in df.columns:
         return df
 
-    # 접점관리 엑셀 → 데이터프레임
-    code_df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
-    code_df["접점코드"] = code_df["접점코드"].astype(str).str.strip().str.upper().str.replace(".0", "", regex=False)
-    code_df["사번"] = code_df["사번"].astype(str).str.strip()
-    code_df["이름"] = code_df["이름"].astype(str).str.strip()
-    code_df = code_df.drop_duplicates(subset="접점코드")
+    df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
+    code_map = get_code_to_user_mapping(db)
 
-    # 매핑용 딕셔너리
-    code_map = code_df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
-
-    # 실적 데이터 접점코드 정제
-    df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper().str.replace(".0", "", regex=False)
-
-    # 사번/이름 컬럼 미리 확보
     if "사번" not in df.columns:
         df["사번"] = ""
     if "이름" not in df.columns:
         df["이름"] = ""
 
-    # 매핑
     mapped = df["접점코드"].map(code_map).dropna()
     mapped_df = pd.DataFrame(mapped.tolist(), index=mapped.index)
 
     df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
     df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
 
-    # 디버깅 출력
-    print("🧪 접점코드 매핑 완료")
-    print("✅ 전체 매핑된 수:", len(mapped_df))
-    print("❌ 매핑 실패 수:", len(df) - len(mapped_df))
-
-
-    # 실패한 접점코드 목록 추출
-    unmapped_codes = df.loc[df["사번"] == "", "접점코드"].unique()
-    print("❌ 매핑 실패한 접점코드 예시:", unmapped_codes[:10])
-
-            
     return df
-
 
 
 
@@ -528,29 +500,7 @@ async def dashboard(
 
     df = apply_user_mapping(df, db)
     
-    store_entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
-    if "접점코드" in df.columns:
-        df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
 
-        code_map = get_code_to_user_mapping(db)
-
-        if "사번" not in df.columns:
-            df["사번"] = ""
-        if "이름" not in df.columns:
-            df["이름"] = ""
-
-        mapped = df["접점코드"].map(code_map).dropna()
-        mapped_df = pd.DataFrame(mapped.tolist(), index=mapped.index)
-
-        df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
-        df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
-
-        unmapped_codes = df[df["사번"] == ""]["접점코드"].unique()
-        print("\n🕵️ [사번 누락된 접점코드 조사]")
-        for code in unmapped_codes[:10]:
-            print(f"❌ 사번 없음 → {repr(code)}")
-
-        save_unmapped_codes_to_file(unmapped_codes)
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
     mapped_columns = {
@@ -1446,21 +1396,20 @@ async def create_store_data(request: Request, db: Session = Depends(get_db)):
     return HTMLResponse("<script>alert('✅ 신규 거래처가 추가되었습니다.'); location.href='/store';</script>")
 
 
-
-@app.get("/init-store", response_class=HTMLResponse)
-async def init_store_page(request: Request):
-    return templates.TemplateResponse("init-store.html", {"request": request})
-
 @app.post("/init-store")
 async def upload_init_store(file: UploadFile = File(...), db: Session = Depends(get_db)):
     df = pd.read_excel(file.file, sheet_name="접점관리")
     df = df.fillna("")
+
+    # ✅ 문자열로 바꾸고 strip 처리
+    df = df.apply(lambda col: col.map(lambda x: str(x).strip() if pd.notnull(x) else ""))
 
     store_data = StoreData(data=df.to_json(force_ascii=False, orient="records"))
     db.add(store_data)
     db.commit()
 
     return HTMLResponse("<script>alert('✅ 접점관리 데이터 초기 저장 완료!'); location.href='/store';</script>")
+
 
 @app.post("/store/delete")
 async def delete_store(code: str = Form(...), db: Session = Depends(get_db)):
