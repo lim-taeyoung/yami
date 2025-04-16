@@ -179,13 +179,6 @@ def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
     unmapped_codes = df.loc[df["사번"] == "", "접점코드"].unique()
     print("❌ 매핑 실패한 접점코드 예시:", unmapped_codes[:10])
 
-
-    unmapped_codes = list(mapping.keys())
-
-    print("\n🕵️ [매핑 실패한 접점코드 조사]")
-    for code in unmapped_codes[:10]:
-        if mapping[code]["사번"] == "":
-            print(f"⚠️ {code} → code_map에 존재하지만 사번 없음")
             
     return df
 
@@ -544,6 +537,11 @@ async def dashboard(
 
         df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
         df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
+
+        unmapped_codes = df[df["사번"] == ""]["접점코드"].unique()
+        print("\n🕵️ [사번 누락된 접점코드 조사]")
+        for code in unmapped_codes[:10]:
+            print(f"❌ 사번 없음 → {repr(code)}")
 
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
