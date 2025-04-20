@@ -6,7 +6,7 @@ import pandas as pd
 from io import BytesIO
 from starlette.responses import RedirectResponse  # ✅ RedirectResponse 추가
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form  # ✅ Form 추가
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base
 from datetime import datetime
 from typing import List, Optional
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_datetime64_any_dtype
@@ -24,8 +24,6 @@ from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from fastapi.staticfiles import StaticFiles
 from database import Base
-from sqlalchemy.engine.url import URL
-from dotenv import load_dotenv
 
 
 app = FastAPI()
@@ -36,8 +34,8 @@ UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
 
 # ✅ 데이터베이스 설정
-DATABASE_URL = "postgresql://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DBNAME>"
-engine = create_engine(DATABASE_URL)
+DATABASE_URL = "sqlite:///./excel_data.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -1207,7 +1205,7 @@ async def model_status_page(
         "010": int(df["010"].sum()),
         "MNP": int(df["MNP"].sum()),
         "기변": int(df["기변"].sum()),
-    }
+    }   
     df = pd.concat([pd.DataFrame([summary_row]), df], ignore_index=True)
 
     # ✅ 컬럼 제거
