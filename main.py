@@ -489,7 +489,7 @@ async def dashboard(
     db: Session = Depends(get_db)
 ):
     if columns is None or not columns:
-        columns = ["일반후불", "MNP", "유선신규 I+T", "MIT(I) 합계", "신동률"]
+        columns = ["사번", "이름", "지사", "센터", "접점코드", "접점명", "일반후불", "MNP", "유선신규 I+T", "MIT(I) 합계", "신동률"]
 
     search_value = (search_value or "").strip()
     search_column = search_column.strip().replace("\ufeff", "")
