@@ -1,21 +1,22 @@
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./mydb.db"
+# ✅ 환경변수에서 DATABASE_URL 가져오기
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("❌ DATABASE_URL 환경변수가 설정되지 않았습니다.")
 
-DATABASE_URL = "sqlite:///./excel_data.db"
+# ✅ PostgreSQL 연결 엔진 생성 (Render에서 SSL 필수)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# ✅ 세션 생성기 설정
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
-
-# 👇 여기 선언
+# ✅ 모델 베이스 클래스
 Base = declarative_base()
 
-# 👇 이거 추가 (명시적 export)
-__all__ = ["Base", "engine", "SessionLocal"]
-
+# ✅ 의존성 주입용 DB 세션 함수
 def get_db():
     db = SessionLocal()
     try:
@@ -23,5 +24,5 @@ def get_db():
     finally:
         db.close()
 
-# 테이블 생성
-Base.metadata.create_all(bind=engine)
+# ✅ 필요한 객체 export (import 편의를 위해)
+__all__ = ["Base", "engine", "SessionLocal", "get_db"]
