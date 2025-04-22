@@ -17,7 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text
 from sqlalchemy.orm import sessionmaker, Session
 from database import Base
-from models import ExcelData, get_db, BoardReply, Store, engine
+from models import ExcelData, BoardReply, Store  # 모델은 여기서
+from database import get_db, engine              # DB 연결 관련은 여기서
 
 from starlette.middleware.sessions import SessionMiddleware
 
