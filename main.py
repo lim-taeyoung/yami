@@ -1,29 +1,25 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey 
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-import pandas as pd
+import os
+import uvicorn
+import shutil
+import json
 from io import BytesIO
-from starlette.responses import RedirectResponse  # ✅ RedirectResponse 추가
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form  # ✅ Form 추가
-from sqlalchemy.orm import Session, declarative_base
 from datetime import datetime
 from typing import List, Optional
+
+import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_datetime64_any_dtype
-from models import ExcelData, get_db, Base, BoardReply, Store, engine
-from fastapi.responses import HTMLResponse
+
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-import shutil
-import os
 from fastapi.staticfiles import StaticFiles
-import json
-from fastapi.responses import RedirectResponse
-from starlette.requests import Request
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.ext.declarative import declarative_base
-from fastapi.staticfiles import StaticFiles
+
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text
+from sqlalchemy.orm import sessionmaker, Session
 from database import Base
+from models import ExcelData, get_db, BoardReply, Store, engine
+
+from starlette.middleware.sessions import SessionMiddleware
 
 
 app = FastAPI()
@@ -35,9 +31,16 @@ MAIN_IMAGE_FILENAME = "main_banner.jpg"
 
 # ✅ 데이터베이스 설정
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set.")
+
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
 # ✅ 데이터 모델 정의
 class ExcelData(Base):
