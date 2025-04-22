@@ -33,9 +33,13 @@ MAIN_IMAGE_FILENAME = "main_banner.jpg"
 # ✅ 데이터베이스 설정
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    DATABASE_URL = "postgresql://yami_user:ycBs0JgawTkWX2b1HhLki3YAKMBLStWX@dpg-d02etvuuk2gs73edlhog-a/yami?sslmode=require"
+    DATABASE_URL = "sqlite:///./local_test.db"
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -488,6 +492,7 @@ async def dashboard(
         columns = ["일반후불", "MNP", "유선신규 I+T", "MIT(I) 합계", "신동률"]
 
     search_value = (search_value or "").strip()
+    search_column = search_column.strip().replace("\ufeff", "")
 
     available_types = db.query(ExcelData.data_type).distinct().all()
     available_types = [t[0] for t in available_types]
