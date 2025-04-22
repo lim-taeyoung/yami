@@ -33,7 +33,7 @@ MAIN_IMAGE_FILENAME = "main_banner.jpg"
 # ✅ 데이터베이스 설정
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set.")
+    DATABASE_URL = "postgresql://yami_user:ycBs0JgawTkWX2b1HhLki3YAKMBLStWX@dpg-d02etvuuk2gs73edlhog-a/yami?sslmode=require"
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -392,14 +392,29 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
     for sheet_name in xls.sheet_names:
         df = pd.read_excel(xls, sheet_name=sheet_name)
 
+        # ✅ 1. 컬럼 이름 정리
+        df.columns = pd.Index([
+            str(col).strip().replace('\ufeff', '') if isinstance(col, str) else col
+            for col in df.columns
+        ])
+
+        # ✅ 2. 사번, 이름 컬럼이 없다면 추가
+        if "사번" not in df.columns:
+            df["사번"] = ""
+        if "이름" not in df.columns:
+            df["이름"] = ""
+
+        # ✅ 3. 값 정리 (공백 제거)
+        df = df.apply(lambda col: col.map(lambda x: str(x).strip() if pd.notnull(x) else ""))
+
         for col in df.columns:
             col_data = df[col]
 
-            # ✅ 1. 퍼센트 처리 (0~1 float → "xx%")
+            # ✅ 퍼센트 처리
             if pd.api.types.is_float_dtype(col_data) and col_data.between(0, 1).all():
                 df[col] = (col_data * 100).round(1).astype(str) + "%"
 
-            # ✅ 2. 날짜 처리 (datetime 또는 object → "MM/DD")
+            # ✅ 날짜 처리
             elif pd.api.types.is_datetime64_any_dtype(col_data):
                 df[col] = col_data.dt.strftime("%m/%d")
             elif pd.api.types.is_object_dtype(col_data):
@@ -407,19 +422,19 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                 if parsed.notna().sum() > 0:
                     df[col] = parsed.dt.strftime("%m/%d")
 
-            # ✅ 3. 자연수 float → int (단 NaN 보존)
+            # ✅ 자연수 float → int
             if pd.api.types.is_float_dtype(col_data):
                 if (col_data.dropna() % 1 == 0).all():
                     df[col] = df[col].apply(lambda x: int(x) if pd.notna(x) else "")
 
-        # ✅ 4. NaN → 빈칸
+        # ✅ NaN → 빈칸
         df = df.fillna("")
 
-        # ✅ 5. DB 저장
+        # ✅ DB 저장
         db_data = ExcelData(
             data=df.to_json(orient="records", force_ascii=False),
             sheet_name=sheet_name,
-            data_type="종합"  # 🔥 꼭 있어야 검색됨
+            data_type="종합"
         )
         db.add(db_data)
 
@@ -1288,10 +1303,26 @@ async def store_page(
         data = []
     else:
         df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
-        df.columns = [str(col).strip() for col in df.columns]
+
+        # ✅ 컬럼명 정리: 공백 제거 + BOM 제거
+        df.columns = pd.Index([
+            str(col).strip().replace('\ufeff', '') if isinstance(col, str) else col
+            for col in df.columns
+        ])
+
+        # ✅ 값 정리: 문자열 공백 제거
         df = df.apply(lambda col: col.map(lambda x: x if pd.isnull(x) else str(x).strip()))
+
+        # ✅ 사번, 이름 컬럼이 없다면 생성
+        if "사번" not in df.columns:
+            df["사번"] = ""
+        if "이름" not in df.columns:
+            df["이름"] = ""
+
+        # ✅ 검색 적용
         if search_value and search_column in df.columns:
             df = df[df[search_column].astype(str).str.contains(search_value, case=False, regex=False)]
+
         columns = df.columns.tolist()
         data = df.to_dict(orient="records")
 
