@@ -39,6 +39,7 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
@@ -163,6 +164,25 @@ def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
     df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
 
     return df
+
+
+
+
+
+@app.get("/debug-latest")
+async def debug_latest_data(db: Session = Depends(get_db)):
+    latest = db.query(ExcelData).order_by(ExcelData.id.desc()).first()
+    if not latest:
+        return {"error": "데이터 없음"}
+
+    try:
+        df = pd.read_json(BytesIO(latest.data.encode("utf-8")))
+        return {
+            "컬럼리스트": df.columns.tolist(),
+            "첫행": df.head(1).to_dict(orient="records")
+        }
+    except Exception as e:
+        return {"error": f"데이터 파싱 실패: {str(e)}"}
 
 
 
