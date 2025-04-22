@@ -34,8 +34,8 @@ UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
 
 # ✅ 데이터베이스 설정
-DATABASE_URL = "sqlite:///./excel_data.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
