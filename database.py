@@ -1,17 +1,17 @@
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from settings import DATABASE_URL
 
-# ✅ 환경변수에서 DATABASE_URL 가져오기
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./excel_data.db"
-    
-# ✅ PostgreSQL 연결 엔진 생성 (Render에서 SSL 필수)
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
-# ✅ 세션 생성기 설정
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    pool_pre_ping=True
+)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+Base = declarative_base()
 
 # ✅ 모델 베이스 클래스
 Base = declarative_base()

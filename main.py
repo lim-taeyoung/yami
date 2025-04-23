@@ -24,6 +24,7 @@ from database import get_db, engine              # DB 연결 관련은 여기서
 
 from starlette.middleware.sessions import SessionMiddleware
 
+from settings import DATABASE_URL
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -33,9 +34,7 @@ UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
 
 # ✅ 데이터베이스 설정
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./excel_data.db"
+
 
 engine = create_engine(
     DATABASE_URL,
