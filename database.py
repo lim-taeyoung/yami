@@ -5,8 +5,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # ✅ 환경변수에서 DATABASE_URL 가져오기
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("❌ DATABASE_URL 환경변수가 설정되지 않았습니다.")
-
+    DATABASE_URL = "sqlite:///./excel_data.db"
+    
 # ✅ PostgreSQL 연결 엔진 생성 (Render에서 SSL 필수)
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
