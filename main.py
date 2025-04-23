@@ -2,6 +2,8 @@ import os
 import uvicorn
 import shutil
 import json
+from dotenv import load_dotenv
+load_dotenv()
 from io import BytesIO
 from datetime import datetime
 from typing import List, Optional
@@ -33,7 +35,7 @@ MAIN_IMAGE_FILENAME = "main_banner.jpg"
 # ✅ 데이터베이스 설정
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./local_test.db"
+    DATABASE_URL = "sqlite:///./excel_data.db"
 
 engine = create_engine(
     DATABASE_URL,
@@ -416,29 +418,14 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
     for sheet_name in xls.sheet_names:
         df = pd.read_excel(xls, sheet_name=sheet_name)
 
-        # ✅ 1. 컬럼 이름 정리
-        df.columns = pd.Index([
-            str(col).strip().replace('\ufeff', '') if isinstance(col, str) else col
-            for col in df.columns
-        ])
-
-        # ✅ 2. 사번, 이름 컬럼이 없다면 추가
-        if "사번" not in df.columns:
-            df["사번"] = ""
-        if "이름" not in df.columns:
-            df["이름"] = ""
-
-        # ✅ 3. 값 정리 (공백 제거)
-        df = df.apply(lambda col: col.map(lambda x: str(x).strip() if pd.notnull(x) else ""))
-
         for col in df.columns:
             col_data = df[col]
 
-            # ✅ 퍼센트 처리
+            # ✅ 1. 퍼센트 처리 (0~1 float → "xx%")
             if pd.api.types.is_float_dtype(col_data) and col_data.between(0, 1).all():
                 df[col] = (col_data * 100).round(1).astype(str) + "%"
 
-            # ✅ 날짜 처리
+            # ✅ 2. 날짜 처리 (datetime 또는 object → "MM/DD")
             elif pd.api.types.is_datetime64_any_dtype(col_data):
                 df[col] = col_data.dt.strftime("%m/%d")
             elif pd.api.types.is_object_dtype(col_data):
@@ -446,19 +433,19 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                 if parsed.notna().sum() > 0:
                     df[col] = parsed.dt.strftime("%m/%d")
 
-            # ✅ 자연수 float → int
+            # ✅ 3. 자연수 float → int (단 NaN 보존)
             if pd.api.types.is_float_dtype(col_data):
                 if (col_data.dropna() % 1 == 0).all():
                     df[col] = df[col].apply(lambda x: int(x) if pd.notna(x) else "")
 
-        # ✅ NaN → 빈칸
+        # ✅ 4. NaN → 빈칸
         df = df.fillna("")
 
-        # ✅ DB 저장
+        # ✅ 5. DB 저장
         db_data = ExcelData(
             data=df.to_json(orient="records", force_ascii=False),
             sheet_name=sheet_name,
-            data_type="종합"
+            data_type="종합"  # 🔥 꼭 있어야 검색됨
         )
         db.add(db_data)
 
@@ -472,6 +459,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
     )
     return HTMLResponse(content=html_str)
 
+
 # ✅ 아래 코드는 기존 /dashboard 엔드포인트에 컬럼 선택 필터 기능을 추가하고,
 # ✅ 선택된 체크박스를 유지되도록 개선한 버전입니다.
 # ✅ 버튼 추가: 메인화면 이동, 체크 모두 해제 기능
@@ -480,6 +468,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
+    
     request: Request,
     type: str = Query("종합"),
     search_column: str = Query("사번"),
@@ -489,10 +478,9 @@ async def dashboard(
     db: Session = Depends(get_db)
 ):
     if columns is None or not columns:
-        columns = ["사번", "이름", "지사", "센터", "접점코드", "접점명", "일반후불", "MNP", "유선신규 I+T", "MIT(I) 합계", "신동률"]
+        columns = ["일반후불", "MNP", "유선신규 I+T", "MIT(I) 합계", "신동률"]
 
     search_value = (search_value or "").strip()
-    search_column = search_column.strip().replace("\ufeff", "")
 
     available_types = db.query(ExcelData.data_type).distinct().all()
     available_types = [t[0] for t in available_types]
@@ -512,8 +500,22 @@ async def dashboard(
     df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
     df.columns = df.columns.str.strip()
 
+    df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
+    df.columns = df.columns.str.strip()
+
+    # ✅ 디버깅: 실제 컬럼 목록 확인
+    print("📌 현재 DataFrame 컬럼 목록:", df.columns.tolist())
+
+    # ✅ 디버깅: 맨 앞 3줄 미리보기
+    print("🧪 데이터 일부 미리보기:", df.head(3).to_dict(orient="records"))
+
+    # ✅ 사용자 매핑 먼저!
     df = apply_user_mapping(df, db)
-    
+
+    # ✅ 컬럼 검사 여기서!
+    if search_column not in df.columns:
+        print("❌ 컬럼 없음 오류 발생! 현재 df.columns:", df.columns.tolist())
+        return HTMLResponse(content=f"<p>⚠ '{search_column}' 컬럼이 데이터에 없습니다.</p>")
 
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
@@ -532,8 +534,6 @@ async def dashboard(
     if not search_value:
         table_html = ""
     else:
-        if search_column not in df.columns:
-            return HTMLResponse(content=f"<p>⚠ '{search_column}' 컬럼이 데이터에 없습니다.</p>")
         try:
             df = df[df[search_column].astype(str).str.contains(search_value, case=False, na=False)]
         except Exception as e:
@@ -542,7 +542,7 @@ async def dashboard(
         if df.empty:
             return HTMLResponse(content="<p style='color:red; font-weight:bold; font-size:50px;'>❌ 검색 결과가 없습니다.</p>")
 
-        # ✅ 일반후불 기준 정렬 추가 (항상 적용)
+        # 일반후불 정렬
         sort_column = "일반후불"
         if sort_column in df.columns:
             try:
@@ -551,6 +551,7 @@ async def dashboard(
             except Exception as e:
                 print(f"⚠ 정렬 오류: {e}")
 
+        # 요약행 생성
         sum_cols = [
             "일반후불", "010", "MNP", "기변", "중고", "5G", "3G/LTE", "100K이상", "초이스4종",
             "유선신규 I+T", "유선신규 I", "유선신규 T", "유선약갱 I+T", "유선약갱 I", "유선약갱 T",
@@ -589,9 +590,7 @@ async def dashboard(
 
             df["신동률"] = df["신동률"].apply(format_rate)
 
-        summary_row = pd.DataFrame([summary])
-        summary_row = summary_row[df.columns]
-        df = pd.concat([summary_row, df], ignore_index=True)
+        df = pd.concat([pd.DataFrame([summary]), df], ignore_index=True)
 
         if "접점코드" in df.columns:
             df["접점코드"] = df["접점코드"].apply(
