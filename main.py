@@ -883,8 +883,13 @@ async def partner_store_page(
         if pd.isnull(x):
             return "--"
         try:
-            val = float(str(x).replace('%', ''))
-            val = val if val > 1 else val * 100
+            x_str = str(x).strip()
+            if "%" in x_str:
+                # 퍼센트 기호가 있는 경우, 그대로 숫자만 추출해 사용
+                val = float(x_str.replace('%', ''))
+            else:
+                # 비율(0.85 등)로 들어온 경우 → 퍼센트로 환산
+                val = float(x_str) * 100
             return f"{round(val, 1)}%"
         except:
             return str(x)
