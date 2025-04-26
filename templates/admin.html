@@ -1,0 +1,72 @@
+<html>
+<head>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: auto; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        h1 { text-align: center; }
+        .upload-block { text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <h1>👤 사용자 관리 리스트</h1>
+
+    <!-- ✅ 사용자 엑셀 업로드 -->
+    <div style='text-align:center; margin-bottom: 20px;'>
+        <form method="post" enctype="multipart/form-data" action="/admin/upload-users">
+            <input type="file" name="file" accept=".xlsx" required>
+            <button type="submit">📅 사용자 엑셀 업로드</button>
+        </form>
+    </div>
+
+    <!-- ✅ 로데이터 업로드 이동 버튼 -->
+    <div style='text-align:center; margin-bottom: 30px;'>
+        <a href='/upload'><button>📊 실적 데이터 업로드</button></a>
+    </div>
+
+    <table>
+        <tr>
+            <th>사번</th><th>이름</th><th>지사</th><th>센터</th><th>직책</th><th>권한</th><th>초기 로그인 유무</th>
+        </tr>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.username }}</td>
+            <td>{{ u.name }}</td>
+            <td>{{ u.team1 }}</td>
+            <td>{{ u.team2 }}</td>
+            <td>{{ u.level }}</td>
+            <td>{{ u.role }}</td>
+            <td>{{ "O" if not u.first_login else "X" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <form method="post" action="/admin/reset-store" onsubmit="return confirm('⚠ 접점관리 데이터를 초기화하시겠습니까?')">
+            <button type="submit" style="background-color: #ff7043; color: white;">🧹 접점관리 초기화</button>
+        </form>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <form method="post" action="/admin/reset-data" onsubmit="return confirm('⚠ 정말 초기화하시겠습니까?')">
+            <button type="submit" style="background-color: #f44336; color: white;">📂 실적 데이터 초기화</button>
+        </form>
+    </div>
+
+    <div style='text-align:center; margin-top:20px;'>
+        <a href='/main'><button>🏠 메인으로</button></a>
+    </div>
+
+    <hr style="margin: 40px 0;">
+
+    <h2 style="text-align: center; margin-bottom: 10px;">📸 메인 이미지 업로드</h2>
+
+    <div style="text-align: center;">
+        <form method="post" action="/upload-main-image" enctype="multipart/form-data">
+            <input type="file" name="main_image" accept="image/*" required>
+            <button type="submit" class="main-button" style="margin-left: 10px;">업로드</button>
+        </form>
+    </div>
+
+</body>
+</html>
