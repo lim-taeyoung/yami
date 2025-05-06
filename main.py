@@ -240,68 +240,8 @@ async def view_users(request: Request, db: Session = Depends(get_db)):
         return HTMLResponse("<h3>⚠ 관리자 전용 페이지입니다.</h3>", status_code=403)
 
     users = db.query(User).all()
-    table_rows = "".join([
-        f"<tr><td>{u.username}</td><td>{u.name}</td><td>{u.team1}</td><td>{u.team2}</td><td>{u.level}</td><td>{u.role}</td><td>{'O' if not u.first_login else 'X'}</td></tr>"
-        for u in users
-    ])
 
-    return f"""
-    <html>
-    <head>
-        <style>
-            table {{ border-collapse: collapse; width: 80%; margin: auto; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; }}
-            th {{ background-color: #f2f2f2; }}
-            h1 {{ text-align: center; }}
-            .upload-block {{ text-align: center; margin-bottom: 30px; }}
-        </style>
-    </head>
-    <body>
-        <h1>👤 사용자 관리 리스트</h1>
-
-        <!-- ✅ 사용자 엑셀 업로드 -->
-        <div style='text-align:center; margin-bottom: 20px;'>
-            <form method="post" enctype="multipart/form-data" action="/admin/upload-users">
-                <input type="file" name="file" accept=".xlsx" required>
-                <button type="submit">📅 사용자 엑셀 업로드</button>
-            </form>
-        </div>
-
-        <!-- ✅ 로데이터 업로드 이동 버튼 -->
-        <div style='text-align:center; margin-bottom: 30px;'>
-            <a href='/upload'><button>📊 실적 데이터 업로드</button></a>
-        </div>
-
-        <table>
-            <tr><th>사번</th><th>이름</th><th>지사</th><th>센터</th><th>직책</th><th>권한</th><th>초기 로그인 유무</th></tr>
-            {table_rows}
-        </table>
-        <div style="text-align: center; margin-top: 20px;">
-            <form method="post" action="/admin/reset-store" onsubmit="return confirm('⚠ 접점관리 데이터를 초기화하시겠습니까?')">
-                <button type="submit" style="background-color: #ff7043; color: white;">🧹 접점관리 초기화</button>
-        </form>
-        </div>
-        <div style="text-align: center; margin-top: 30px;">
-            <form method="post" action="/admin/reset-data" onsubmit="return confirm('⚠ 정말 초기화하시겠습니까?')">
-                <button type="submit" style="background-color: #f44336; color: white;">📂 실적 데이터 초기화</button>
-            </form>
-        </div>
-        <div style='text-align:center; margin-top:20px;'>
-            <a href='/main'><button>🏠 메인으로</button></a>
-
-            </div>
-            <hr style="margin: 40px 0;">
-            <h2 style="text-align: center; margin-bottom: 10px;">📸 메인 이미지 업로드</h2>
-            <div style="text-align: center;">
-                <form method="post" action="/upload-main-image" enctype="multipart/form-data">
-                    <input type="file" name="main_image" accept="image/*" required>
-                    <button type="submit" class="main-button" style="margin-left: 10px;">업로드</button>
-            </form>
-        </div>
-        
-    </body>
-    </html>
-    """
+    return templates.TemplateResponse("admin.html", {"request": request, "users": users})
     
 @app.post("/admin/reset-data")
 async def reset_excel_data(db: Session = Depends(get_db)):
@@ -1457,3 +1397,56 @@ async def delete_store(code: str = Form(...), db: Session = Depends(get_db)):
     db.commit()
 
     return RedirectResponse("/store", status_code=303)
+
+
+@app.get("/infra", response_class=HTMLResponse)
+async def infra_page(
+    request: Request,
+    selected_sheets: List[str] = Query(default_factory=list),
+    filter_column: str = Query("지사"),
+    filter_value: str = Query(""),
+    db: Session = Depends(get_db)
+):
+    # ✅ 사용자 라벨 ↔ 실제 시트명 매핑
+    SHEET_LABELS = {
+        "전월 무선가동점": "전월가동(무선)",
+        "전월 유선가동점": "전월가동(유선)",
+        "2개월 무선 연속가동점": "2개월(무선)",
+        "2개월 유선 연속가동점": "2개월(유선)",
+        "전월 신규점": "전월신규점"
+    }
+
+    tables = {}
+
+    for label, sheet_name in SHEET_LABELS.items():
+        if label not in selected_sheets:
+            continue
+
+        data_entry = db.query(ExcelData).filter(
+            ExcelData.sheet_name == sheet_name
+        ).order_by(ExcelData.id.desc()).first()
+
+        if not data_entry:
+            tables[label] = f"<p>❌ '{label}' 데이터 없음</p>"
+            continue
+
+        df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
+
+        if filter_value and filter_column in df.columns:
+            df = df[df[filter_column].astype(str).str.contains(filter_value, case=False, na=False)]
+
+        if "접점코드" in df.columns:
+            df["접점코드"] = df["접점코드"].apply(
+                lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>' if pd.notnull(x) else x
+            )
+
+        tables[label] = df.to_html(classes="table table-striped", index=False, escape=False)
+
+    return templates.TemplateResponse("infra.html", {
+        "request": request,
+        "sheet_options": list(SHEET_LABELS.keys()),   # ✅ 반드시 포함!
+        "selected_sheets": selected_sheets,
+        "filter_column": filter_column,
+        "filter_value": filter_value,
+        "tables": tables
+    })
