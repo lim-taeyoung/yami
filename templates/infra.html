@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>🛠 인프라 시트 조회</h1>
+
+<form method="get" action="/infra" class="search-form">
+
+    <fieldset style="display:flex; flex-wrap: wrap; gap: 15px;">
+        <legend>📌 시트 선택</legend>
+        {% for label in sheet_options %}
+        <label>
+            <input type="checkbox" name="selected_sheets" value="{{ label }}"
+                   {% if label in selected_sheets %}checked{% endif %}>
+            {{ label }}
+        </label>
+        {% endfor %}
+    </fieldset>
+
+    <div class="search-form" style="margin-top: 20px;">
+        <label class="select-wrapper">
+            <select name="filter_column">
+                <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option> 
+                <option value="지사" {% if filter_column == "지사" %}selected{% endif %}>지사</option>
+                <option value="센터" {% if filter_column == "센터" %}selected{% endif %}>센터</option>
+                <option value="접점코드" {% if filter_column == "접점코드" %}selected{% endif %}>접점코드</option>
+            </select>
+        </label>
+        <input type="text" name="filter_value" placeholder="검색어 입력" value="{{ filter_value or '' }}">
+        <button type="submit">🔍 검색</button>
+        <button type="button" onclick="location.href='/main'">🏠 메인으로</button>
+    </div>
+
+</form>
+
+<hr>
+
+{% if tables %}
+    {% for label, html in tables.items() %}
+        <h2 style="margin-top: 40px;">📄 {{ label }}</h2>
+        <div class="table-wrapper">
+            {{ html | safe }}
+        </div>
+    {% endfor %}
+{% else %}
+    <p style="margin-top: 30px;">✅ 시트를 선택하고 검색어를 입력해 결과를 확인하세요.</p>
+{% endif %}
+
+{% endblock %}
