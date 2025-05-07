@@ -442,12 +442,6 @@ async def dashboard(
     df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
     df.columns = df.columns.str.strip()
 
-    # ✅ 디버깅: 실제 컬럼 목록 확인
-    print("📌 현재 DataFrame 컬럼 목록:", df.columns.tolist())
-
-    # ✅ 디버깅: 맨 앞 3줄 미리보기
-    print("🧪 데이터 일부 미리보기:", df.head(3).to_dict(orient="records"))
-
     # ✅ 사용자 매핑 먼저!
     df = apply_user_mapping(df, db)
 
@@ -1399,6 +1393,8 @@ async def delete_store(code: str = Form(...), db: Session = Depends(get_db)):
     return RedirectResponse("/store", status_code=303)
 
 
+
+
 @app.get("/infra", response_class=HTMLResponse)
 async def infra_page(
     request: Request,
@@ -1416,6 +1412,10 @@ async def infra_page(
         "전월 신규점": "전월신규점"
     }
 
+    # ✅ StoreData 기준으로 접점코드 → 사번/이름 매핑
+    code_map = get_code_to_user_mapping(db)
+    print("✅ code_map 생성 완료:", list(code_map.keys())[:5])
+
     tables = {}
 
     for label, sheet_name in SHEET_LABELS.items():
@@ -1431,20 +1431,37 @@ async def infra_page(
             continue
 
         df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
+        df.columns = [col.strip().replace(" ", "_") for col in df.columns]
+        print(f"✅ {label} 시트 로드 성공, 컬럼 목록:", df.columns.tolist())
 
-        if filter_value and filter_column in df.columns:
-            df = df[df[filter_column].astype(str).str.contains(filter_value, case=False, na=False)]
-
+        # ✅ 접점코드 매핑
         if "접점코드" in df.columns:
-            df["접점코드"] = df["접점코드"].apply(
-                lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>' if pd.notnull(x) else x
-            )
+            df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
+            print("✅ 매핑 전 접점코드 샘플:", df["접점코드"].unique()[:5])
+
+            # ✅ 사번/이름 컬럼 생성
+            df["사번"] = df.get("사번", "")
+            df["이름"] = df.get("이름", "")
+
+            # ✅ 접점코드 기준으로 매핑 적용
+            mapped = df["접점코드"].map(code_map).dropna()
+            mapped_df = mapped.apply(pd.Series)
+
+            print("✅ 매핑된 결과:", mapped_df.head(3).to_dict(orient="records"))
+
+            for idx in mapped_df.index:
+                if pd.isna(df.at[idx, "사번"]) or df.at[idx, "사번"] == "":
+                    df.at[idx, "사번"] = mapped_df.at[idx, "사번"]
+                if pd.isna(df.at[idx, "이름"]) or df.at[idx, "이름"] == "":
+                    df.at[idx, "이름"] = mapped_df.at[idx, "이름"]
+
+            print("✅ 매핑 후 사번/이름 확인:", df[["접점코드", "사번", "이름"]].head(3).to_dict(orient="records"))
 
         tables[label] = df.to_html(classes="table table-striped", index=False, escape=False)
 
     return templates.TemplateResponse("infra.html", {
         "request": request,
-        "sheet_options": list(SHEET_LABELS.keys()),   # ✅ 반드시 포함!
+        "sheet_options": list(SHEET_LABELS.keys()),
         "selected_sheets": selected_sheets,
         "filter_column": filter_column,
         "filter_value": filter_value,
