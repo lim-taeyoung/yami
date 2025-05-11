@@ -19,8 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text
 from sqlalchemy.orm import sessionmaker, Session
 from database import Base
-from models import ExcelData, BoardReply, Store  # 모델은 여기서
-from database import get_db, engine              # DB 연결 관련은 여기서
+from models import ExcelData, BoardReply, Store, SiteSettings 
+from database import get_db, engine 
 
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -102,8 +102,16 @@ class Store(Base):
     센터 = Column(String)
     접점명 = Column(String)
 
-Base.metadata.create_all(bind=engine)
 
+class SiteSettings(Base):
+    __tablename__ = "site_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+
+
+    
+Base.metadata.create_all(bind=engine)
 
 
 # ✅ 데이터베이스 세션 생성 함수
@@ -115,80 +123,56 @@ def get_db():
         db.close()
 
 def get_code_to_user_mapping(db: Session):
+    # ✅ StoreData에서 최신 접점관리 데이터 불러오기
     entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
     if not entry:
+        print("❌ 접점 관리 데이터가 없습니다.")
         return {}
 
     df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    
+    # ✅ 접점코드, 사번, 이름 컬럼 확인
+    if not all(col in df.columns for col in ["접점코드", "사번", "이름"]):
+        print("❌ 접점 관리 데이터에 '접점코드', '사번', '이름' 컬럼이 누락되었습니다.")
+        return {}
+
     df = df[["접점코드", "사번", "이름"]].dropna(subset=["접점코드"])
     df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
     df["사번"] = df["사번"].astype(str).str.strip()
     df["이름"] = df["이름"].astype(str).str.strip()
 
+    # ✅ 사번이 없는 경우 제외, 중복 제거
     df = df[df["사번"] != ""]
     df = df.drop_duplicates(subset="접점코드", keep="first")
 
-    # ✅ 딱 하나 남긴 디버깅
-    test_code = "PZF0000803"
-    if test_code in df["접점코드"].values:
-        print(f"✅ StoreData에 '{test_code}' 있음")
-    else:
-        print(f"❌ StoreData에 '{test_code}' 없음")
-
-    mapping = df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
-    return mapping
-
-    
-def save_unmapped_codes_to_file(unmapped_codes: list[str]):
-    save_path = "static/unmapped_codes.txt"
-    os.makedirs("static", exist_ok=True)
-    with open(save_path, "w", encoding="utf-8") as f:
-        for code in unmapped_codes:
-            f.write(f"{code}\n")
-    print(f"📁 매핑 실패 코드 저장됨: {save_path}")
-
-
-
+    # ✅ 딕셔너리 형태로 반환 (접점코드 -> {사번, 이름})
+    code_map = df.set_index("접점코드")[["사번", "이름"]].to_dict(orient="index")
+    print(f"✅ 매핑된 접점코드 수: {len(code_map)}")
+    return code_map
 
 def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
     if "접점코드" not in df.columns:
+        print("❌ 접점코드 컬럼이 없습니다. 매핑 불가.")
         return df
 
     df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
     code_map = get_code_to_user_mapping(db)
+    
+    if not code_map:
+        print("❌ 접점코드 매핑 정보가 없습니다.")
+        return df
 
-    if "사번" not in df.columns:
-        df["사번"] = ""
-    if "이름" not in df.columns:
-        df["이름"] = ""
+    # ✅ 매핑된 정보 적용
+    for idx, row in df.iterrows():
+        접점코드 = row["접점코드"]
+        if 접점코드 in code_map:
+            if not row.get("사번"):  # 기존 사번이 없을 때만 적용
+                df.at[idx, "사번"] = code_map[접점코드]["사번"]
+            if not row.get("이름"):  # 기존 이름이 없을 때만 적용
+                df.at[idx, "이름"] = code_map[접점코드]["이름"]
 
-    mapped = df["접점코드"].map(code_map).dropna()
-    mapped_df = pd.DataFrame(mapped.tolist(), index=mapped.index)
-
-    df.loc[mapped_df.index, "사번"] = mapped_df["사번"]
-    df.loc[mapped_df.index, "이름"] = mapped_df["이름"]
-
+    print("✅ 사용자 매핑 적용 완료.")
     return df
-
-
-
-
-
-@app.get("/debug-latest")
-async def debug_latest_data(db: Session = Depends(get_db)):
-    latest = db.query(ExcelData).order_by(ExcelData.id.desc()).first()
-    if not latest:
-        return {"error": "데이터 없음"}
-
-    try:
-        df = pd.read_json(BytesIO(latest.data.encode("utf-8")))
-        return {
-            "컬럼리스트": df.columns.tolist(),
-            "첫행": df.head(1).to_dict(orient="records")
-        }
-    except Exception as e:
-        return {"error": f"데이터 파싱 실패: {str(e)}"}
-
 
 
 # ✅ 로그인 페이지
@@ -299,21 +283,28 @@ async def upload_users(file: UploadFile = File(...), db: Session = Depends(get_d
     return RedirectResponse(url="/admin/users?username=admin", status_code=303)
 
 
-# ✅ 🚀 메인 페이지 (로그인 후 이동)
+# ✅ 메인 페이지 (로그인 후 이동)
 @app.get("/main", response_class=HTMLResponse)
-def main_page(request: Request, username: str = Query("사용자"), mode: str = Query("mobile")):
+def main_page(request: Request, username: str = Query("사용자"), mode: str = Query("mobile"), db: Session = Depends(get_db)):
     name = request.session.get("name", "사용자")
 
     # ✅ 대문 이미지가 존재하면 경로 전달
     image_path = "static/uploads/main_banner.jpg"
     image_url = f"/{image_path}" if os.path.exists(image_path) else None
 
+    # ✅ 타이틀 읽기 (DB에서 최신 타이틀 읽기)
+    title = db.query(SiteSettings).first()
+    title_text = title.title if title else "업데이트된 타이틀이 없습니다."
+
+    print(f"✅ 타이틀 텍스트: {title_text}")  # ✅ 디버깅: 타이틀 출력 확인
+
     return templates.TemplateResponse("main.html", {
         "request": request,
         "username": username,
         "mode": mode,
         "name": name,
-        "main_image_url": image_url  # ✅ 이미지 경로 넘겨줌
+        "main_image_url": image_url,  # ✅ 이미지 경로 넘겨줌
+        "title_text": title_text      # ✅ 타이틀 텍스트 넘겨줌
     })
 
 # ✅ 엑셀 업로드 페이지
@@ -1393,8 +1384,6 @@ async def delete_store(code: str = Form(...), db: Session = Depends(get_db)):
     return RedirectResponse("/store", status_code=303)
 
 
-
-
 @app.get("/infra", response_class=HTMLResponse)
 async def infra_page(
     request: Request,
@@ -1403,7 +1392,7 @@ async def infra_page(
     filter_value: str = Query(""),
     db: Session = Depends(get_db)
 ):
-    # ✅ 사용자 라벨 ↔ 실제 시트명 매핑
+    # ✅ 사용자 라벨 ↔ 실제 시트명 매핑 (고정된 다섯 가지 유형)
     SHEET_LABELS = {
         "전월 무선가동점": "전월가동(무선)",
         "전월 유선가동점": "전월가동(유선)",
@@ -1413,51 +1402,85 @@ async def infra_page(
     }
 
     # ✅ StoreData 기준으로 접점코드 → 사번/이름 매핑
-    code_map = get_code_to_user_mapping(db)
+    code_map = get_code_to_user_mapping(db) or {}
     print("✅ code_map 생성 완료:", list(code_map.keys())[:5])
 
     tables = {}
+    summary_data = []
 
+    # ✅ 다섯 가지 유형 모두 요약에 표시
     for label, sheet_name in SHEET_LABELS.items():
-        if label not in selected_sheets:
-            continue
-
         data_entry = db.query(ExcelData).filter(
             ExcelData.sheet_name == sheet_name
         ).order_by(ExcelData.id.desc()).first()
 
         if not data_entry:
-            tables[label] = f"<p>❌ '{label}' 데이터 없음</p>"
+            summary_data.append({
+                "label": label,
+                "total_points": 0,
+                "active_points": 0,
+                "inactive_points": 0,
+                "active_rate": "0%"
+            })
             continue
 
+        # ✅ 데이터프레임 로드 및 컬럼 정리
         df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
         df.columns = [col.strip().replace(" ", "_") for col in df.columns]
-        print(f"✅ {label} 시트 로드 성공, 컬럼 목록:", df.columns.tolist())
 
-        # ✅ 접점코드 매핑
+        # 접점코드 → 사번/이름 매핑
         if "접점코드" in df.columns:
-            df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
-            print("✅ 매핑 전 접점코드 샘플:", df["접점코드"].unique()[:5])
-
-            # ✅ 사번/이름 컬럼 생성
+            code_map = get_code_to_user_mapping(db)
             df["사번"] = df.get("사번", "")
             df["이름"] = df.get("이름", "")
+            mapped = df["접점코드"].map(code_map).dropna().apply(pd.Series)
+            for idx in mapped.index:
+                if not df.at[idx, "사번"]:
+                    df.at[idx, "사번"] = mapped.at[idx, "사번"]
+                if not df.at[idx, "이름"]:
+                    df.at[idx, "이름"] = mapped.at[idx, "이름"]
 
-            # ✅ 접점코드 기준으로 매핑 적용
-            mapped = df["접점코드"].map(code_map).dropna()
-            mapped_df = mapped.apply(pd.Series)
+        # ✅ 필터 적용 (지사, 센터, 접점코드, 사번)
+        filtered_df = df.copy()
+        if filter_column and filter_value:
+            if filter_column in filtered_df.columns:
+                filtered_df = filtered_df[
+                    filtered_df[filter_column].astype(str).str.contains(filter_value, case=False, na=False)
+                ]
+                print(f"✅ '{filter_column}' 필터 적용: {filter_value}")
 
-            print("✅ 매핑된 결과:", mapped_df.head(3).to_dict(orient="records"))
+        # ✅ 정렬: 전월무선 또는 전월유선 기준 내림차순 (존재할 경우)
+        sort_columns = [col for col in ["전월무선", "전월유선"] if col in filtered_df.columns]
+        if sort_columns:
+            try:
+                for col in sort_columns:
+                    filtered_df[col] = pd.to_numeric(filtered_df[col], errors="coerce")
+                filtered_df = filtered_df.sort_values(by=sort_columns, ascending=False, na_position="last")
+                print(f"✅ {', '.join(sort_columns)} 기준 내림차순 정렬 완료")
+            except Exception as e:
+                print(f"❌ 정렬 오류: {e}")
 
-            for idx in mapped_df.index:
-                if pd.isna(df.at[idx, "사번"]) or df.at[idx, "사번"] == "":
-                    df.at[idx, "사번"] = mapped_df.at[idx, "사번"]
-                if pd.isna(df.at[idx, "이름"]) or df.at[idx, "이름"] == "":
-                    df.at[idx, "이름"] = mapped_df.at[idx, "이름"]
+        # ✅ 요약 데이터 생성 (검색된 데이터 기준)
+        total_points = len(filtered_df)
+        active_points = filtered_df[filtered_df["가동여부"].str.upper() == "O"].shape[0] if "가동여부" in filtered_df.columns else 0
+        inactive_points = total_points - active_points
+        active_rate = f"{round((active_points / total_points) * 100, 1)}%" if total_points > 0 else "0%"
 
-            print("✅ 매핑 후 사번/이름 확인:", df[["접점코드", "사번", "이름"]].head(3).to_dict(orient="records"))
+        summary_data.append({
+            "label": label,
+            "total_points": total_points,
+            "active_points": active_points,
+            "inactive_points": inactive_points,
+            "active_rate": active_rate
+        })
 
-        tables[label] = df.to_html(classes="table table-striped", index=False, escape=False)
+        # ✅ 사용자가 선택한 시트만 출력 테이블에 추가
+        if label in selected_sheets:
+            tables[label] = filtered_df.to_html(classes="table table-striped", index=False, escape=False)
+
+    # ✅ 기본적으로 '전월 무선가동점' 체크 (초기 진입 시)
+    if not selected_sheets and not filter_value:
+        selected_sheets.append("전월 무선가동점")
 
     return templates.TemplateResponse("infra.html", {
         "request": request,
@@ -1465,5 +1488,43 @@ async def infra_page(
         "selected_sheets": selected_sheets,
         "filter_column": filter_column,
         "filter_value": filter_value,
-        "tables": tables
+        "tables": tables,
+        "summary_data": summary_data
     })
+
+
+    # main.py (타이틀 수정 라우터)
+
+@app.get("/admin/update-title", response_class=HTMLResponse)
+async def update_title_page(request: Request, db: Session = Depends(get_db)):
+    if request.session.get("user_role") != "admin":
+        return HTMLResponse("<h3>⚠ 관리자 전용 페이지입니다.</h3>", status_code=403)
+
+    # ✅ 기존 타이틀 읽기 (없으면 기본값)
+    title = db.query(SiteSettings).first()
+    current_title = title.title if title else ""
+
+    return templates.TemplateResponse("update_title.html", {
+        "request": request,
+        "current_title": current_title
+    })
+
+@app.post("/admin/update-title")
+async def update_title(request: Request, new_title: str = Form(...), db: Session = Depends(get_db)):
+    # ✅ 관리자 권한 확인
+    if request.session.get("user_role") != "admin":
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+
+    # ✅ 타이틀 업데이트 로직
+    setting = db.query(SiteSettings).first()
+    if setting:
+        setting.title = new_title.strip()
+    else:
+        setting = SiteSettings(title=new_title.strip())
+        db.add(setting)
+
+    db.commit()  # ✅ 커밋 필수
+    db.refresh(setting)  # ✅ 변경된 값 즉시 반영 확인
+    print(f"✅ 업데이트된 타이틀: {setting.title}")  # ✅ 디버깅: 타이틀 확인
+
+    return HTMLResponse("<script>alert('✅ 타이틀이 업데이트되었습니다!'); location.href='/main';</script>")

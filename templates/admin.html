@@ -1,72 +1,140 @@
-<html>
 <head>
     <style>
         table { border-collapse: collapse; width: 80%; margin: auto; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
         th { background-color: #f2f2f2; }
         h1 { text-align: center; }
-        .upload-block { text-align: center; margin-bottom: 30px; }
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+        /* ✅ 공통 버튼 스타일 (기본) */
+        .btn { 
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            padding: 10px 15px;
+            font-size: 16px;
+        }
+
+        /* ✅ 개별 버튼 스타일 */
+        .btn-upload {
+            background-color: #4CAF50;
+            font-size: 16px;
+            width: 200x;
+            height: 40px;
+        }
+        .btn-upload:hover { background-color: #45a049; }
+
+        .btn-upload-file {
+            background-color: #45a049;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-upload-file:hover { background-color: #3e8e41; }
+
+        .btn-reset {
+            background-color: #ff7043;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-reset:hover { background-color: #ff5733; }
+
+        .btn-reset-danger {
+            background-color: #f44336;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-reset-danger:hover { background-color: #e53935; }
+
+        .btn-title {
+            background-color: #3f51b5;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-title:hover { background-color: #3949ab; }
+
+        .btn-image {
+            background-color: #6a1b9a;
+            font-size: 16px;
+            width: 100px;
+            height: 40px;
+        }
+        .btn-image:hover { background-color: #5e35b1; }
+
+        .btn-image-upload {
+            background-color: #6a1b9a;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-image-upload:hover { background-color: #5e35b1; }
+
+        .btn-main {
+            background-color: #607d8b;
+            font-size: 16px;
+            width: 200px;
+            height: 40px;
+        }
+        .btn-main:hover { background-color: #455a64; }
     </style>
 </head>
 <body>
-    <h1>👤 사용자 관리 리스트</h1>
 
+<h1>👤 사용자 관리 리스트</h1>
+
+<!-- ✅ 버튼 그루핑 -->
+<div class="button-group" style="margin-bottom: 30px;">
     <!-- ✅ 사용자 엑셀 업로드 -->
-    <div style='text-align:center; margin-bottom: 20px;'>
-        <form method="post" enctype="multipart/form-data" action="/admin/upload-users">
-            <input type="file" name="file" accept=".xlsx" required>
-            <button type="submit">📅 사용자 엑셀 업로드</button>
-        </form>
-    </div>
+    <form method="post" enctype="multipart/form-data" action="/admin/upload-users" style="display: inline;">
+        <input type="file" name="file" accept=".xlsx" required style="display: none;" id="user-file">
+        <button type="button" class="btn btn-upload-file" onclick="document.getElementById('user-file').click()">📅 엑셀 파일 선택</button>
+        <button type="submit" class="btn btn-upload">업로드</button>
+    </form>
+    
+    <!-- ✅ 메인 이미지 업로드 -->
+    <form method="post" action="/upload-main-image" enctype="multipart/form-data" style="display: inline;">
+        <input type="file" name="main_image" accept="image/*" required style="display: none;" id="main-image-file">
+        <button type="button" class="btn btn-image-upload" onclick="document.getElementById('main-image-file').click()">📸 이미지 파일 선택</button>
+        <button type="submit" class="btn btn-image">업로드</button>
+    </form>
 
-    <!-- ✅ 로데이터 업로드 이동 버튼 -->
-    <div style='text-align:center; margin-bottom: 30px;'>
-        <a href='/upload'><button>📊 실적 데이터 업로드</button></a>
-    </div>
+    <!-- ✅ 기타 버튼 -->
+    <a href='/upload'><button class="btn btn-upload">📊 실적 데이터 업로드</button></a>
 
-    <table>
-        <tr>
-            <th>사번</th><th>이름</th><th>지사</th><th>센터</th><th>직책</th><th>권한</th><th>초기 로그인 유무</th>
-        </tr>
-        {% for u in users %}
-        <tr>
-            <td>{{ u.username }}</td>
-            <td>{{ u.name }}</td>
-            <td>{{ u.team1 }}</td>
-            <td>{{ u.team2 }}</td>
-            <td>{{ u.level }}</td>
-            <td>{{ u.role }}</td>
-            <td>{{ "O" if not u.first_login else "X" }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <form method="post" action="/admin/reset-store" onsubmit="return confirm('⚠ 접점관리 데이터를 초기화하시겠습니까?')" style="display: inline;">
+        <button type="submit" class="btn btn-reset">🧹 접점관리 초기화</button>
+    </form>
+    
+    <form method="post" action="/admin/reset-data" onsubmit="return confirm('⚠ 정말 초기화하시겠습니까?')" style="display: inline;">
+        <button type="submit" class="btn btn-reset-danger">📂 실적 데이터 초기화</button>
+    </form>
 
-    <div style="text-align: center; margin-top: 20px;">
-        <form method="post" action="/admin/reset-store" onsubmit="return confirm('⚠ 접점관리 데이터를 초기화하시겠습니까?')">
-            <button type="submit" style="background-color: #ff7043; color: white;">🧹 접점관리 초기화</button>
-        </form>
-    </div>
+    <a href="/admin/update-title"><button class="btn btn-title">✏️ 타이틀 수정</button></a>
+    <a href='/main'><button class="btn btn-main">🏠 메인으로</button></a>
+</div>
 
-    <div style="text-align: center; margin-top: 30px;">
-        <form method="post" action="/admin/reset-data" onsubmit="return confirm('⚠ 정말 초기화하시겠습니까?')">
-            <button type="submit" style="background-color: #f44336; color: white;">📂 실적 데이터 초기화</button>
-        </form>
-    </div>
-
-    <div style='text-align:center; margin-top:20px;'>
-        <a href='/main'><button>🏠 메인으로</button></a>
-    </div>
-
-    <hr style="margin: 40px 0;">
-
-    <h2 style="text-align: center; margin-bottom: 10px;">📸 메인 이미지 업로드</h2>
-
-    <div style="text-align: center;">
-        <form method="post" action="/upload-main-image" enctype="multipart/form-data">
-            <input type="file" name="main_image" accept="image/*" required>
-            <button type="submit" class="main-button" style="margin-left: 10px;">업로드</button>
-        </form>
-    </div>
+<!-- ✅ 사용자 리스트 테이블 -->
+<table>
+    <tr>
+        <th>사번</th><th>이름</th><th>지사</th><th>센터</th><th>직책</th><th>권한</th><th>초기 로그인 유무</th>
+    </tr>
+    {% for u in users %}
+    <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.name }}</td>
+        <td>{{ u.team1 }}</td>
+        <td>{{ u.team2 }}</td>
+        <td>{{ u.level }}</td>
+        <td>{{ u.role }}</td>
+        <td>{{ "O" if not u.first_login else "X" }}</td>
+    </tr>
+    {% endfor %}
+</table>
 
 </body>
 </html>

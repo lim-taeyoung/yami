@@ -1,3 +1,5 @@
+# models.py
+
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import declarative_base
 
@@ -44,3 +46,9 @@ class Store(Base):
     지사 = Column(String)
     센터 = Column(String)
     접점명 = Column(String)
+
+# ✅ 사이트 설정 (타이틀 설정)
+class SiteSettings(Base):
+    __tablename__ = "site_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)

@@ -1,53 +1,128 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>🛠 인프라 시트 조회 
+<h1>🛠 인프라 현황 
     <button type="button" style="float: right;" onclick="location.href='/main'">🏠 메인으로</button>
 </h1>
 
+<!-- ✅ 체크박스 영역 (위) -->
 <form method="get" action="/infra" class="search-form">
-
-    <fieldset style="display:flex; flex-wrap: wrap; gap: 15px;">
-        <legend>📌 시트 선택</legend>
+    <fieldset style="display: flex; flex-wrap: wrap; gap: 15px;">
+        <legend>📌 유형 선택</legend>
         {% for label in sheet_options %}
         <label>
             <input type="checkbox" name="selected_sheets" value="{{ label }}"
-                   {% if label == "전월 무선가동점" or label in selected_sheets %}checked{% endif %}
+                   {% if label in selected_sheets %}checked{% endif %}
                    onclick="handleCheckboxClick(this)">
             {{ label }}
         </label>
         {% endfor %}
     </fieldset>
 
-    <div class="search-form" style="margin-top: 20px; display: flex; gap: 10px;">
-        <select name="filter_column">
+
+    <!-- ✅ 검색 영역 (아래) -->
+    <div class="search-row">
+        <select name="filter_column" class="search-dropdown">
             <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option> 
             <option value="지사" {% if filter_column == "지사" %}selected{% endif %}>지사</option>
             <option value="센터" {% if filter_column == "센터" %}selected{% endif %}>센터</option>
             <option value="접점코드" {% if filter_column == "접점코드" %}selected{% endif %}>접점코드</option>
         </select>
-        <input type="text" name="filter_value" placeholder="검색어 입력" value="{{ filter_value or '' }}">
-        <button type="submit">🔍 검색</button>
+        <input type="text" name="filter_value" placeholder="검색어 입력" 
+               value="{{ filter_value or '' }}" class="search-input">
+        <button type="submit" class="search-button">🔍 검색</button>
     </div>
-
 </form>
 
 <hr>
 
+<!-- ✅ 요약 테이블 (항상 다섯 가지 유형) -->
+<div class="summary-table" style="margin-top: 20px;">
+    <h2>📊 요약 현황</h2>
+    <table class="table table-summary">
+        <thead>
+            <tr>
+                <th>유형</th>
+                <th>대상 점수</th>
+                <th>가동 점수</th>
+                <th>미가동 점수</th>
+                <th>가동률</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for summary in summary_data %}
+            <tr>
+                <td>{{ summary.label }}</td>
+                <td>{{ summary.total_points }}</td>
+                <td>{{ summary.active_points }}</td>
+                <td>{{ summary.inactive_points }}</td>
+                <td>{{ summary.active_rate }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<hr>
+
+<!-- ✅ 출력 테이블 -->
 {% if tables %}
     {% for label, html in tables.items() %}
         <h2 style="margin-top: 40px;">📄 {{ label }}</h2>
         <div class="table-wrapper">
-            <div class="table-container">
+            <div class="table-container" style="--font-size: 16px; --row-height: 40px;">
                 {{ html | safe }}
             </div>
         </div>
     {% endfor %}
 {% else %}
-    <p style="margin-top: 30px;">✅ 시트를 선택하고 검색어를 입력해 결과를 확인하세요.</p>
+    <p style="margin-top: 30px;">✅ 유형을 선택하고 검색어를 입력해 결과를 확인하세요.</p>
 {% endif %}
 
+
+
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".table-container table").forEach(table => {
+        const headers = table.querySelectorAll("th");
+        let gadowIndex = -1;
+        let separatorIndex = -1;
+
+        headers.forEach((header, index) => {
+            const headerText = header.innerText.trim();
+            
+            // ✅ "구분자" 컬럼 자동 숨김
+            if (headerText === "구분자") {
+                separatorIndex = index;
+                header.style.display = "none";
+            }
+
+            // ✅ "가동여부" 컬럼 인덱스 확인
+            if (headerText.includes("가동여부")) {
+                gadowIndex = index;
+            }
+        });
+
+        // ✅ 각 행에서 처리
+        table.querySelectorAll("tr").forEach(row => {
+            if (separatorIndex >= 0) {
+                const cell = row.children[separatorIndex];
+                if (cell) {
+                    cell.style.display = "none";
+                }
+            }
+
+            // ✅ "가동여부" 컬럼 O 표시 색상 변경
+            if (gadowIndex >= 0) {
+                const cell = row.children[gadowIndex];
+                if (cell && cell.innerText.trim().toUpperCase() === "O") {
+                    cell.classList.add("highlight-green");
+                }
+            }
+        });
+    });
+});
+
 // ✅ 체크박스 클릭 시 다른 체크박스 자동 해제
 function handleCheckboxClick(clicked) {
     document.querySelectorAll('input[name="selected_sheets"]').forEach(checkbox => {
@@ -57,32 +132,11 @@ function handleCheckboxClick(clicked) {
 </script>
 
 <style>
-.meta-count {
-    font-weight: normal;
-    color: #666;
-    margin-left: 10px;
-}
-.meta-separator {
-    border-top: 1px solid #ccc;
-    margin: 10px 0;
-}
-.reply-separator {
-    border-top: 1px solid #ddd;
-    margin: 14px 0;
-}
-.text {
-    white-space: pre-wrap;
-    font-size: 30px;
-}
-.reply-list .reply {
-    padding-left: 1em;
-    position: relative;
-    font-weight: bold;
-}
-.top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+/* ✅ 강제 적용되는 연두색 스타일 (우선 적용) */
+.highlight-green {
+    background-color: #ccf392 !important;
+    color: #000 !important;
+    font-weight: bold !important;
 }
 /* ✅ 사번/이름 컬럼 자동 숨김 */
 .table-container table th:nth-child(1),
@@ -91,6 +145,62 @@ function handleCheckboxClick(clicked) {
 .table-container table td:nth-child(2) {
     display: none;
 }
+
+
+/* ✅ 검색 영역 스타일 통일 */
+.search-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    margin-top: 15px;
+}
+
+.search-dropdown, .search-input, .search-button {
+    height: 40px;
+    font-size: 16px;
+}
+
+.table-container table {
+    font-size: var(--font-size, 16px);
+    width: 100%;
+}
+
+.table-container table tr {
+    height: var(--row-height, 40px);
+}
+
+/* ✅ 요약 테이블 스타일 */
+.summary-table {
+    margin-top: 10px; /* 상단 여백 (기존 20px → 10px으로 줄임) */
+    font-size: 20px;  /* 폰트 크기 20px */
+    line-height: 1.2; /* 줄간격 조절 (기본값보다 살짝 줄임) */
+}
+
+.summary-table th, 
+.summary-table td {
+    padding: 6px 10px; /* 셀 상하 여백 줄임 */
+    text-align: center;
+}
+
+/* ✅ 본 테이블 스타일 */
+.table-container table {
+    font-size: 20px; /* 폰트 크기 20px */
+    width: 100%;
+    margin-top: 10px; /* 상단 여백 (기존 40px → 10px으로 줄임) */
+}
+
+.table-container table th, 
+.table-container table td {
+    padding: 6px 10px; /* 셀 상하 여백 줄임 */
+    text-align: center;
+}
+
+.table-container table tr {
+    height: auto; /* 높이를 자동으로 (콘텐츠에 맞게) */
+}
+
+
+
 </style>
 
 {% endblock %}

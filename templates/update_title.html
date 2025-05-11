@@ -1,0 +1,27 @@
+<!-- templates/update_title.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔧 타이틀 수정</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        input[type="text"] { font-size: 18px; padding: 8px; width: 60%; }
+        button { font-size: 18px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button.cancel { background-color: #f44336; }
+    </style>
+</head>
+<body>
+
+<h1>🔧 타이틀 수정</h1>
+<form method="post" action="/admin/update-title">
+    <div style="margin-bottom: 20px;">
+        <input type="text" name="new_title" placeholder="새로운 타이틀 입력" value="{{ current_title }}" required>
+    </div>
+    <div>
+        <button type="submit">✅ 수정하기</button>
+        <button type="button" class="cancel" onclick="location.href='/main'">🏠 메인으로</button>
+    </div>
+</form>
+
+</body>
+</html>
