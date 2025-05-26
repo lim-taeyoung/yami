@@ -12,7 +12,7 @@ import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_datetime64_any_dtype
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -1288,6 +1288,32 @@ async def store_page(
         "data": data,
         "edit_mode": edit_mode
     })
+
+
+@app.get("/store/export")
+async def export_store_data(db: Session = Depends(get_db)):
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("❌ 저장된 접점관리 데이터가 없습니다.")
+
+    # JSON 데이터를 DataFrame으로 로드
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+
+    # 엑셀로 변환
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="접점관리")
+    output.seek(0)
+
+    # 다운로드 응답 반환
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=MAPPING.xlsx"
+        }
+    )
+
 
 @app.post("/store/update")
 async def update_store_data(request: Request, db: Session = Depends(get_db)):
