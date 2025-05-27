@@ -1,7 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
 
-{% if mode == "desktop" %}
-    <!-- 데스크탑 영역은 기존 유지 -->
-{% else %}
 <!-- 로그아웃 버튼 -->
 <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
     <a href="/"><button class="main-button" style="background-color: #f44336; color: white;">🚪 로그아웃</button></a>
@@ -17,7 +16,6 @@
 <!-- 타이틀 -->
 <div style="text-align: center; margin: 20px 0 30px;">
     <span style="font-size: 40px; font-weight: 900;">{{ title_text }}</span>
-
 </div>
 
 <!-- ✅ 메인 버튼 -->
@@ -42,20 +40,21 @@
     ] %}
 
     {% for url, label in buttons %}
-        <a href='{{ url }}'>
-            <button class="main-button" style="
-                width: 100%;
-                height: 90px;
-                font-size: 40px;
-                font-weight: 600;
-                background-color: rgb(210, 209, 230);
-                border: 4px solid rgb(216, 204, 204);
-                border-radius: 12px;
-                box-sizing: border-box;
-            ">
-                {{ label }}
-            </button>
-        </a>
+    <a href="{{ url }}">
+        <button class="main-button" style="
+            width: 100%;
+            height: 90px;
+            font-size: 40px;
+            font-weight: 600;
+            background-color: rgb(210, 209, 230);
+            border: 4px solid rgb(216, 204, 204);
+            border-radius: 12px;
+            box-sizing: border-box;
+        ">
+            {{ label }}
+        </button>
+    </a>
     {% endfor %}
 </div>
-{% endif %}
+
+{% endblock %}

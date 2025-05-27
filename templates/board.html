@@ -193,32 +193,4 @@
       <input type="hidden" name="message_id" value="{{ msg.id or '' }}">
       <input type="text" name="user" placeholder="이름" required>
       <input type="text" name="reply" placeholder="댓글 입력..." required>
-      <button type="submit">댓글</button>
-    </form>
-
-    {% if msg.user == "admin" %}
-    <form class="delete-form" method="post" action="/board/delete">
-      <input type="hidden" name="msg_id" value="{{ msg.id }}">
-      <button type="submit" style="color: red;">🗑 삭제</button>
-    </form>
-    {% endif %}
-  </div>
-  {% endfor %}
-
-  {% if total_pages > 1 %}
-  <div class="pagination">
-    {% for p in range(1, total_pages + 1) %}
-      {% if p == page %}
-        <span class="current">{{ p }}</span>
-      {% else %}
-        <a href="/board?page={{ p }}">{{ p }}</a>
-      {% endif %}
-    {% endfor %}
-  </div>
-  {% endif %}
-</div>
-
-<script>
-  // 더 이상 필요 없음: openImageModal(), closeImageModal()
-</script>
-{% endblock %}
+      <button type="s

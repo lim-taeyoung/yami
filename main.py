@@ -395,7 +395,6 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
 # ✅ 버튼 추가: 메인화면 이동, 체크 모두 해제 기능
 
 
-
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
     
@@ -538,7 +537,6 @@ async def dashboard(
         "table_html": table_html,
         "mode": mode
     })
-
 
 # ✅ 한마디 게시판 메인 페이지
 

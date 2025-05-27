@@ -190,8 +190,8 @@ window.addEventListener("load", adjustStickyColumnWidths);
     padding: 1px 5px;
     height: 32px;
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
+    white-space: normal !important;
+    overflow: visible !important;
     text-overflow: ellipsis;
 }
 
@@ -246,6 +246,8 @@ window.addEventListener("load", adjustStickyColumnWidths);
     .table th,
     .table td {
         padding: 4px 6px;
+        white-space: normal !important;
+        overflow: visible !important;
     }
 }
 </style>

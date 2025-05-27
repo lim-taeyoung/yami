@@ -41,6 +41,7 @@
 
   .delete-button {
     background-color: #d9534f;
+    font-size: 16px;
   }
 
   .delete-button:hover {
@@ -131,10 +132,8 @@
 
 <div class="top-buttons">
     <a href="/main"><button class="main-button">🏠 메인으로 이동</button></a>
-    {% if request.session.get('user_role') == 'admin' %}
-        <a href="/store/export"><button class="main-button">📁 엑셀 다운로드</button></a>
-        <button class="delete-button" onclick="enableDeleteMode()">🗑️ 접점 삭제</button>
-    {% endif %}
+    <a href="/store/export"><button class="main-button">📁 엑셀 다운로드</button></a>
+      <button class="delete-button" onclick="enableDeleteMode()">🗑️ 접점 삭제</button>
 </div>
 
 {% if request.session.get('user_role') == 'admin' %}
