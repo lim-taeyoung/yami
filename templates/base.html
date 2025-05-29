@@ -3,10 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>대시보드</title>
-
-    <!-- ✅ 모바일 반응형을 위한 viewport 설정 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 
     <style>
@@ -20,28 +16,6 @@
         html, body {
             font-size: 16px;
             font-family: 'Pretendard Variable', sans-serif;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            overflow-x: auto; /* ✅ 수평 스크롤 허용 */
-        }
-
-        /* ✅ 기기 해상도에 따른 폰트 및 테이블 반응형 설정 */
-        @media (max-width: 1024px) {
-            html { font-size: 15px; }
-            table { font-size: 15px; }
-        }
-
-        @media (max-width: 768px) {
-            html { font-size: 14px; }
-            table { font-size: 14px; }
-            .table th, .table td { padding: 6px; }
-        }
-
-        @media (max-width: 480px) {
-            html { font-size: 13px; }
-            table { font-size: 13px; }
-            .table th, .table td { padding: 4px; }
         }
 
         body {
@@ -61,7 +35,7 @@
             padding: 10px;
             text-align: center;
             white-space: nowrap;
-            background-color: #ffffff;
+            background-color: #ffffff; /* 기본 흰색 배경 */
         }
 
         .table th {
@@ -69,8 +43,9 @@
             color: rgb(0, 0, 0);
         }
 
+        /* ✅ '가동여부' 연두색 강조 스타일 (우선순위 적용) */
         .highlight-green {
-            background-color: #a4eb34 !important;
+            background-color: #a4eb34 !important; /* 연두색 강제 적용 */
             color: #000 !important;
             font-weight: bold !important;
         }
@@ -211,6 +186,7 @@
             }
         }
 
+        /* ✅ 로딩 오버레이 스타일 */
         #loading-overlay {
             position: fixed;
             top: 0; left: 0;
@@ -239,15 +215,15 @@
         }
     </style>
 </head>
-
 <body>
-    <!-- ✅ 로딩 오버레이 -->
+
+    <!-- ✅ 로딩 오버레이 추가 -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <div>⏳ 페이지 로딩 중입니다...</div>
     </div>
 
-    <!-- ✅ 본문 콘텐츠 -->
+    <!-- ✅ 본문은 숨겨두고, 페이지 다 로딩되면 보여주기 -->
     <div id="main-content" style="display: none;">
         {% block content %}{% endblock %}
     </div>
@@ -258,5 +234,6 @@
             document.getElementById("main-content").style.display = "block";
         });
     </script>
+
 </body>
 </html>
