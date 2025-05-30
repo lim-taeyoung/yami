@@ -51,4 +51,6 @@ class Store(Base):
 class SiteSettings(Base):
     __tablename__ = "site_settings"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
+    title = Column(String)
+    notice = Column(Text)        # 공지사항 본문
+    issue = Column(Text)         # 이슈사항 본문

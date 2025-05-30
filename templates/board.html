@@ -1,11 +1,8 @@
-<!-- 수정된 board.html 템플릿 -->
 {% extends "base.html" %}
 
 {% block content %}
 <style>
-  * {
-    font-size: 24px;
-  }
+  * { font-size: 24px; }
   .reply-form {
     display: flex;
     gap: 8px;
@@ -16,12 +13,8 @@
   .reply-form input[name="reply"] {
     padding: 6px;
   }
-  .reply-form input[name="user"] {
-    flex: 1.5;
-  }
-  .reply-form input[name="reply"] {
-    flex: 8.5;
-  }
+  .reply-form input[name="user"] { flex: 1.5; }
+  .reply-form input[name="reply"] { flex: 8.5; }
   .reply-form button {
     background-color: #444;
     color: white;
@@ -101,8 +94,7 @@
     margin-bottom: 8px;
   } 
   .meta strong {
-    font-size: 30px; /* 원하는 크기로 수정하세요 */
-
+    font-size: 30px;
   }
   .meta-time {
     float: right;
@@ -126,19 +118,16 @@
     white-space: pre-wrap;
     font-size: 30px;
   }
-
   .reply-list .reply {
-  padding-left: 1em;
-  position: relative;
-  font-weight: bold;
+    padding-left: 1em;
+    position: relative;
+    font-weight: bold;
   }
-
   .top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  
 </style>
 
 <div class="top-bar">
@@ -148,49 +137,52 @@
   </form>
 </div>
 
-  <!-- ✅ 입력 구조 변경 -->
-  <form class="message-form" method="post" action="/board/message" enctype="multipart/form-data">
-    <textarea name="message" placeholder="메시지를 입력하세요" required></textarea>
-    <div class="bottom-inputs">
-      <input type="text" name="user" placeholder="이름" required>
-      <input type="file" name="images" accept="image/*" multiple>
-      <button type="submit">등록</button>
-    </div>
-  </form>
+<form class="message-form" method="post" action="/board/message" enctype="multipart/form-data">
+  <textarea name="message" placeholder="메시지를 입력하세요" required></textarea>
+  <div class="bottom-inputs">
+    <input type="text" name="user" placeholder="이름" required>
+    <input type="file" name="images" accept="image/*" multiple>
+    <button type="submit">등록</button>
+  </div>
+</form>
 
-  <hr>
+<hr>
 
-  {% for msg in messages %}
-  <div class="message-box">
-    <div class="meta">
-      😀 <strong>{{ msg.user }}</strong>
-      <span class="meta-time">🕒 {{ msg.time }} <span class="meta-count">#{{ total_count - ((page - 1) * 15 + loop.index0) }}</span></span>
-    </div>
-    <div class="meta-separator"></div>
-    <div class="message-content">
-      {% if msg.image_list %}
-      <div class="image-thumbs">
-        {% for filename in msg.image_list %}
-        <a href="/static/board_images/{{ filename }}" target="_blank">
-          <img src="/static/board_images/{{ filename }}" class="thumb">
-        </a>
-        {% endfor %}
-      </div>
-      {% endif %}
-      <div class="text"> {{ msg.text }}</div>
-    </div>
-
-    {% if msg.replies %}
-    <div class="reply-separator"></div>
-    <div class="reply-list">
-      {% for reply in msg.replies %}
-      <div class="reply">💬 <strong>{{ reply.user }}</strong>: {{ reply.text }}</div>
+{% for msg in messages %}
+<div class="message-box">
+  <div class="meta">
+    😀 <strong>{{ msg.user }}</strong>
+    <span class="meta-time">🕒 {{ msg.time }} <span class="meta-count">#{{ total_count - ((page - 1) * 15 + loop.index0) }}</span></span>
+  </div>
+  <div class="meta-separator"></div>
+  <div class="message-content">
+    {% if msg.image_list %}
+    <div class="image-thumbs">
+      {% for filename in msg.image_list %}
+      <a href="/static/board_images/{{ filename }}" target="_blank">
+        <img src="/static/board_images/{{ filename }}" class="thumb">
+      </a>
       {% endfor %}
     </div>
     {% endif %}
+    <div class="text"> {{ msg.text }}</div>
+  </div>
 
-    <form class="reply-form" method="post" action="/board/reply">
-      <input type="hidden" name="message_id" value="{{ msg.id or '' }}">
-      <input type="text" name="user" placeholder="이름" required>
-      <input type="text" name="reply" placeholder="댓글 입력..." required>
-      <button type="s
+  {% if msg.replies %}
+  <div class="reply-separator"></div>
+  <div class="reply-list">
+    {% for reply in msg.replies %}
+    <div class="reply">💬 <strong>{{ reply.user }}</strong>: {{ reply.text }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form class="reply-form" method="post" action="/board/reply">
+    <input type="hidden" name="message_id" value="{{ msg.id or '' }}">
+    <input type="text" name="user" placeholder="이름" required>
+    <input type="text" name="reply" placeholder="댓글 입력..." required>
+    <button type="submit">작성</button>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

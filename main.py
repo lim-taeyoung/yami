@@ -32,6 +32,7 @@ app.add_middleware(SessionMiddleware, secret_key="supersecret123!@#")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 UPLOAD_PATH = "static/uploads"
 MAIN_IMAGE_FILENAME = "main_banner.jpg"
+NOTICE_FILE = "data/notices.json"
 
 # ✅ 데이터베이스 설정
 
@@ -102,13 +103,13 @@ class Store(Base):
     센터 = Column(String)
     접점명 = Column(String)
 
-
+# ✅ 사이트 설정 (타이틀 설정)
 class SiteSettings(Base):
     __tablename__ = "site_settings"
-
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-
+    title = Column(String)
+    notice = Column(Text)        # 공지사항 본문
+    issue = Column(Text)         # 이슈사항 본문
 
     
 Base.metadata.create_all(bind=engine)
@@ -173,6 +174,8 @@ def apply_user_mapping(df: pd.DataFrame, db: Session) -> pd.DataFrame:
 
     print("✅ 사용자 매핑 적용 완료.")
     return df
+
+
 
 
 # ✅ 로그인 페이지
@@ -283,29 +286,32 @@ async def upload_users(file: UploadFile = File(...), db: Session = Depends(get_d
     return RedirectResponse(url="/admin/users?username=admin", status_code=303)
 
 
-# ✅ 메인 페이지 (로그인 후 이동)
+
 @app.get("/main", response_class=HTMLResponse)
 def main_page(request: Request, username: str = Query("사용자"), mode: str = Query("mobile"), db: Session = Depends(get_db)):
     name = request.session.get("name", "사용자")
 
-    # ✅ 대문 이미지가 존재하면 경로 전달
+    # ✅ 대문 이미지 경로
     image_path = "static/uploads/main_banner.jpg"
     image_url = f"/{image_path}" if os.path.exists(image_path) else None
 
-    # ✅ 타이틀 읽기 (DB에서 최신 타이틀 읽기)
-    title = db.query(SiteSettings).first()
-    title_text = title.title if title else "업데이트된 타이틀이 없습니다."
-
-    print(f"✅ 타이틀 텍스트: {title_text}")  # ✅ 디버깅: 타이틀 출력 확인
+    # ✅ 사이트 설정 데이터 조회
+    setting = db.query(SiteSettings).first()
+    title_text = setting.title if setting else "업데이트된 타이틀이 없습니다."
+    notice_text = setting.notice if setting else "공지사항이 없습니다."
+    issue_text = setting.issue if setting else "이슈사항이 없습니다."
 
     return templates.TemplateResponse("main.html", {
         "request": request,
         "username": username,
         "mode": mode,
         "name": name,
-        "main_image_url": image_url,  # ✅ 이미지 경로 넘겨줌
-        "title_text": title_text      # ✅ 타이틀 텍스트 넘겨줌
+        "main_image_url": image_url,
+        "title_text": title_text,
+        "notice_text": notice_text,
+        "issue_text": issue_text,
     })
+
 
 # ✅ 엑셀 업로드 페이지
 @app.get("/upload", response_class=HTMLResponse)
@@ -1231,8 +1237,6 @@ async def goal_page(request: Request):
 
 
 
-
-
 @app.get("/store", response_class=HTMLResponse)
 async def store_page(
     request: Request,
@@ -1273,6 +1277,8 @@ async def store_page(
         # ✅ 검색 적용
         if search_value and search_column in df.columns:
             df = df[df[search_column].astype(str).str.contains(search_value, case=False, regex=False)]
+        else:
+            df = df.iloc[0:0]  # 🔧 검색어 없을 경우 데이터 없이 컬럼만 유지
 
         columns = df.columns.tolist()
         data = df.to_dict(orient="records")
@@ -1524,31 +1530,37 @@ async def update_title_page(request: Request, db: Session = Depends(get_db)):
     if request.session.get("user_role") != "admin":
         return HTMLResponse("<h3>⚠ 관리자 전용 페이지입니다.</h3>", status_code=403)
 
-    # ✅ 기존 타이틀 읽기 (없으면 기본값)
-    title = db.query(SiteSettings).first()
-    current_title = title.title if title else ""
-
+    setting = db.query(SiteSettings).first()
     return templates.TemplateResponse("update_title.html", {
         "request": request,
-        "current_title": current_title
+        "current_title": setting.title if setting else "",
+        "current_notice": setting.notice if setting else "",
+        "current_issue": setting.issue if setting else ""
     })
 
 @app.post("/admin/update-title")
-async def update_title(request: Request, new_title: str = Form(...), db: Session = Depends(get_db)):
-    # ✅ 관리자 권한 확인
+async def update_title(
+    request: Request,
+    new_notice: str = Form(...),
+    new_issue: str = Form(...),
+    db: Session = Depends(get_db)
+):
     if request.session.get("user_role") != "admin":
         raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
 
-    # ✅ 타이틀 업데이트 로직
     setting = db.query(SiteSettings).first()
     if setting:
-        setting.title = new_title.strip()
+        setting.notice = new_notice.strip()
+        setting.issue = new_issue.strip()
     else:
-        setting = SiteSettings(title=new_title.strip())
+        setting = SiteSettings(
+            notice=new_notice.strip(),
+            issue=new_issue.strip()
+        )
         db.add(setting)
 
-    db.commit()  # ✅ 커밋 필수
-    db.refresh(setting)  # ✅ 변경된 값 즉시 반영 확인
-    print(f"✅ 업데이트된 타이틀: {setting.title}")  # ✅ 디버깅: 타이틀 확인
+    db.commit()
+    db.refresh(setting)
+    print(f"✅ 업데이트된 정보: {setting.notice}, {setting.issue}")
 
-    return HTMLResponse("<script>alert('✅ 타이틀이 업데이트되었습니다!'); location.href='/main';</script>")
+    return HTMLResponse("<script>alert('✅ 공지사항/이슈사항이 업데이트되었습니다!'); location.href='/main';</script>")
