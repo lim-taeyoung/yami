@@ -400,6 +400,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
 # ✅ 선택된 체크박스를 유지되도록 개선한 버전입니다.
 # ✅ 버튼 추가: 메인화면 이동, 체크 모두 해제 기능
 
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
@@ -407,6 +408,8 @@ async def dashboard(
     search_column: str = Query("사번"),
     search_value: str = Query(None),
     columns: list[str] = Query(None),
+    sort_column: str = Query("일반후불"),
+    sort_order: str = Query("desc"),
     mode: str = Query("mobile"),
     db: Session = Depends(get_db)
 ):
@@ -436,8 +439,7 @@ async def dashboard(
     df = apply_user_mapping(df, db)
 
     if search_column not in df.columns:
-        print("❌ 컬럼 없음 오류 발생! 현재 df.columns:", df.columns.tolist())
-        return HTMLResponse(content=f"<p>⚠ '{search_column}' 컬럼이 데이터에 없습니다.</p>")
+        return HTMLResponse(content=f"<p>⚠ '{search_column}' 컨텐츠가 없습니다.</p>")
 
     base_columns = [col for col in ["사번", "이름", "지사", "센터", "접점코드", "접점명"] if col in df.columns]
 
@@ -451,24 +453,23 @@ async def dashboard(
         expanded_columns.extend(mapped_columns.get(col, [col]))
 
     selected_columns = base_columns + [col for col in expanded_columns if col in df.columns and col not in base_columns]
-    df = df[selected_columns]
+    df = df[[col for col in selected_columns if col in df.columns]]
 
     if not search_value:
         table_html = ""
     else:
         try:
-            df = df[df[search_column].astype(str).str.contains(search_value, case=False, na=False)]
+            df_filtered = df[df[search_column].astype(str).str.contains(search_value, case=False, na=False)]
         except Exception as e:
             return HTMLResponse(content=f"<p style='color:red;'>🔥 필터링 중 오류 발생: {e}</p>")
 
-        if df.empty:
+        if df_filtered.empty:
             return HTMLResponse(content="<p style='color:red; font-weight:bold; font-size:50px;'>❌ 검색 결과가 없습니다.</p>")
 
-        sort_column = "일반후불"
-        if sort_column in df.columns:
+        if sort_column in df_filtered.columns:
             try:
-                df[sort_column] = pd.to_numeric(df[sort_column], errors='coerce')
-                df = df.sort_values(by=sort_column, ascending=False)
+                df_filtered[sort_column] = pd.to_numeric(df_filtered[sort_column], errors='coerce')
+                df_filtered = df_filtered.sort_values(by=sort_column, ascending=(sort_order == "asc"))
             except Exception as e:
                 print(f"⚠ 정렬 오류: {e}")
 
@@ -481,44 +482,41 @@ async def dashboard(
             "M-3 유선신규(M)", "M-2 유선신규(M)", "M-1 유선신규(M)", "M-3 유선신규(대)", "M-2 유선신규(대)", "M-1 유선신규(대)"
         ]
 
+        df_base = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
+        df_base.columns = df_base.columns.str.strip()
+        df_base = apply_user_mapping(df_base, db)
+        df_calc = df_base[df_base[search_column].astype(str).str.contains(search_value, case=False, na=False)].copy()
+        df_calc["신동"] = pd.to_numeric(df_calc.get("신동", pd.Series([0]*len(df_calc))), errors='coerce').fillna(0)
+        df_calc["신동모수"] = pd.to_numeric(df_calc.get("신동모수", pd.Series([0]*len(df_calc))), errors='coerce').fillna(0)
+
+        sum_신동 = df_calc["신동"].sum()
+        sum_신동모수 = df_calc["신동모수"].sum()
+        ratio = f"{round((sum_신동 / sum_신동모수) * 100, 1)}%" if sum_신동모수 > 0 else "--"
+
         summary = {}
-        for col in df.columns:
+        for col in df_filtered.columns:
             if col in base_columns:
                 summary[col] = ""
             elif col in sum_cols:
                 try:
-                    value = pd.to_numeric(df[col], errors='coerce').sum(skipna=True)
+                    value = pd.to_numeric(df_filtered[col], errors='coerce').sum(skipna=True)
                     summary[col] = int(value) if pd.notnull(value) else 0
                 except:
                     summary[col] = 0
             else:
                 summary[col] = ""
 
-        if "신동률" in df.columns:
-            try:
-                신동 = pd.to_numeric(df["신동"], errors='coerce').sum(skipna=True)
-                신동모수 = pd.to_numeric(df["신동모수"], errors='coerce').sum(skipna=True)
-                summary["신동률"] = f"{round((신동 / 신동모수) * 100, 1)}%" if 신동모수 > 0 else "--"
-            except:
-                summary["신동률"] = "--"
+        if "신동률" in columns:
+            summary["신동률"] = ratio
 
-            def format_rate(val):
-                try:
-                    val = str(val).strip().replace('%', '')
-                    return f"{round(float(val), 1)}%"
-                except (ValueError, TypeError):
-                    return val
+        df_result = pd.concat([pd.DataFrame([summary]), df_filtered], ignore_index=True)
 
-            df["신동률"] = df["신동률"].apply(format_rate)
-
-        df = pd.concat([pd.DataFrame([summary]), df], ignore_index=True)
-
-        if "접점코드" in df.columns:
-            df["접점코드"] = df["접점코드"].apply(
+        if "접점코드" in df_result.columns:
+            df_result["접점코드"] = df_result["접점코드"].apply(
                 lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>' if pd.notnull(x) else ""
             )
 
-        df_visible = df[[col for col in df.columns if col not in ["사번", "이름"]]]
+        df_visible = df_result[[col for col in df_result.columns if col not in ["사번", "이름"]]]
         table_html = df_visible.to_html(classes="table table-striped", index=False, escape=False)
 
         table_html = table_html.replace('<th>지사</th>', '<th class="sticky-col col-1">지사</th>')
@@ -533,9 +531,10 @@ async def dashboard(
         "search_value": search_value,
         "columns": columns,
         "table_html": table_html,
+        "sort_column": sort_column,
+        "sort_order": sort_order,
         "mode": mode
     })
-
 
 
 # ✅ 한마디 게시판 메인 페이지

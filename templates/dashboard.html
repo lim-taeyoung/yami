@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% block content %}
 {% set type = type or "종합" %}
@@ -127,7 +126,6 @@ fieldset legend {
     background-color: #e0f7ff !important;
 }
 
-/* 고정 컬럼 처리 */
 .table td:nth-child(1), .table th:nth-child(1) {
     position: sticky;
     left: 0;
@@ -171,6 +169,7 @@ fieldset legend {
     width: auto;
     text-align: center;
 }
+
 .table td:nth-child(1),
 .table td:nth-child(2),
 .table td:nth-child(3),
@@ -178,9 +177,46 @@ fieldset legend {
     background-color: white !important;
 }
 
-
 .hidden-col {
     display: none !important;
+}
+
+.sort-bar {
+    margin-bottom: 12px;
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+}
+.sort-inline {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: nowrap;
+    width: 50%;
+    justify-content: space-between;
+}
+.sort-inline label{
+    flex: 0;
+    white-space: nowrap;
+    font-size: 22px;
+    box-sizing: border-box;
+    padding: 6px 8px;
+}
+.sort-inline select,
+.sort-inline button {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    padding: 6px 8px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+.sort-inline button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-weight: 600;
 }
 </style>
 
@@ -207,13 +243,13 @@ fieldset legend {
 
         <div class="fieldset-group">
             {% for group in [
-                ["🍮 무선", ["일반후불", "010", "MNP", "기변", "중고", "5G", "3G/LTE"]],
-                ["🍮 무선 기타", ["100K이상", "초이스4종", "S25", "AIP16"]],
-                ["📞 유선", [("유선신규 I+T", "신규 I+T"), ("유선신규 I", "신규 I"), ("유선신규 T", "신규 T"),
+                ["✅ 무선", ["일반후불", "010", "MNP", "기변", "중고", "5G", "3G/LTE"]],
+                ["✅ 무선 기타", ["100K이상", "초이스4종", "S25", "AIP16"]],
+                ["☑️ 유선", [("유선신규 I+T", "신규 I+T"), ("유선신규 I", "신규 I"), ("유선신규 T", "신규 T"),
                            ("유선약갱 I+T", "약갱 I+T"), ("유선약갱 I", "약갱 I"), ("유선약갱 T", "약갱 T")]],
-                ["🔀 MIT(M)", [("MIT(M) 합계", "합계"), ("MIT(M) 신규", "신규"), ("MIT(M) 약갱", "약갱")]],
-                ["🔀 MIT(I)", [("MIT(I) 합계", "합계"), ("MIT(I) 신규", "신규"), ("MIT(I) 약갱", "약갱"), ("신동", "신동"), ("신동모수", "신동모수"), ("신동률", "신동률")]],
-                ["📊 최근 3개월", ["일반후불(M,대)", "유선신규(M,대)"]]
+                ["☑️ MIT(M)", [("MIT(M) 합계", "합계"), ("MIT(M) 신규", "신규"), ("MIT(M) 약갱", "약갱")]],
+                ["☑️ MIT(I)", [("MIT(I) 합계", "합계"), ("MIT(I) 신규", "신규"), ("MIT(I) 약갱", "약갱"), ("신동", "신동"), ("신동모수", "신동모수"), ("신동률", "신동률")]],
+                ["✔️ 최근 3개월", ["일반후불(M,대)", "유선신규(M,대)"]]
             ] %}
             <fieldset>
                 <legend>{{ group[0] }}</legend>
@@ -228,7 +264,33 @@ fieldset legend {
             {% endfor %}
         </div>
     </form>
+
     <hr>
+
+    {% if table_html %}
+    <div class="sort-bar">
+        <form method="get" action="/dashboard" class="sort-inline">
+            <input type="hidden" name="type" value="{{ type }}">
+            <input type="hidden" name="search_column" value="{{ search_column }}">
+            <input type="hidden" name="search_value" value="{{ search_value }}">
+            {% for col in columns %}
+            <input type="hidden" name="columns" value="{{ col }}">
+            {% endfor %}
+
+            <label>🔔 정렬기준</label>
+
+            <select name="sort_column">
+                {% for col in columns %}
+                    <option value="{{ col }}" {% if col == sort_column %}selected{% endif %}>{{ col }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" name="sort_order" value="asc">🔼<span>오름차순</span></button>
+            <button type="submit" name="sort_order" value="desc">🔽<span>내림차순</span></button>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="dashboard-table-wrapper table-wrapper">
         {{ table_html | safe }}
     </div>
