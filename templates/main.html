@@ -1,10 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
 
+
 <!-- 로그아웃 버튼 -->
 <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
     <a href="/"><button class="main-button" style="background-color: #f44336; color: white;">🚪 로그아웃</button></a>
 </div>
+
+<!-- ✅ 타이틀 영역 -->
+<div style="text-align: center; margin-bottom: 20px;">
+    <div style="
+        font-size: 100px;
+        font-weight: bold;
+        text-shadow: 8px 8px 8px rgba(0, 0, 0, 0.3);
+    ">
+        < 도 매 인 >
+    </div>
+    <div style="font-size: 50px; color: #555;">
+        m&amp;s도매 영업지원 플랫폼
+    </div>
+</div>
+
 
 <!-- ✅ 대문 이미지 영역 -->
 {% if main_image_url %}
@@ -38,7 +54,7 @@
         <label style="font-weight: bold;">📢 공지사항 (notice_text)</label>
         <textarea name="notice_text" rows="3" style="padding: 10px; font-size: 18px;">{{ notice_text }}</textarea>
 
-        <label style="font-weight: bold;">📝 중점관리사항 (issue_text)</label>
+        <label style="font-weight: bold;">📝 이달의 중점관리사항 (issue_text)</label>
         <textarea name="issue_text" rows="3" style="padding: 10px; font-size: 18px;">{{ issue_text }}</textarea>
 
         <button type="submit" style="
@@ -63,15 +79,15 @@
     grid-template-columns: 1fr 1fr;
     gap: 14px;
     padding: 0 4px;
-    margin-top: 20px;
+    margin-top: 10px;
 ">
     {% set buttons = [
         ('/dashboard', '📊 유무선 종합현황'),
-        ('/partner-store', '🏪 파트너 매장'),
+        ('/partner-store', '🏪 파트너매장'),
         ('/report-search', '📌 접점별 현황'),
         ('/infra', '🌏 인프라 현황'),
         ('/model-status', '📱 모델별 현황'),
-        ('/store', '🏷️ 접점 관리'),
+        ('/store', '🏷️ 접점코드 관리'),
         ('/daily-wireless', '🗓️ 일자별 무선'),
         ('/board', '💬 도매 소통방'),
         ('/daily-wire', '🗓️ 일자별 유선'),
@@ -85,9 +101,9 @@
             height: 90px;
             font-size: 40px;
             font-weight: 600;
-            background-color: rgb(210, 209, 230);
-            border: 4px solid rgb(216, 204, 204);
-            border-radius: 12px;
+            background-color: rgb(255, 255, 255);
+            border: 4px solid rgba(210, 205, 222, 0.69);
+            border-radius: 15px;
             box-sizing: border-box;
         ">
             {{ label }}

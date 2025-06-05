@@ -400,10 +400,8 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
 # ✅ 선택된 체크박스를 유지되도록 개선한 버전입니다.
 # ✅ 버튼 추가: 메인화면 이동, 체크 모두 해제 기능
 
-
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
-    
     request: Request,
     type: str = Query("종합"),
     search_column: str = Query("사번"),
@@ -435,13 +433,8 @@ async def dashboard(
     df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
     df.columns = df.columns.str.strip()
 
-    df = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
-    df.columns = df.columns.str.strip()
-
-    # ✅ 사용자 매핑 먼저!
     df = apply_user_mapping(df, db)
 
-    # ✅ 컬럼 검사 여기서!
     if search_column not in df.columns:
         print("❌ 컬럼 없음 오류 발생! 현재 df.columns:", df.columns.tolist())
         return HTMLResponse(content=f"<p>⚠ '{search_column}' 컬럼이 데이터에 없습니다.</p>")
@@ -471,7 +464,6 @@ async def dashboard(
         if df.empty:
             return HTMLResponse(content="<p style='color:red; font-weight:bold; font-size:50px;'>❌ 검색 결과가 없습니다.</p>")
 
-        # 일반후불 정렬
         sort_column = "일반후불"
         if sort_column in df.columns:
             try:
@@ -480,15 +472,15 @@ async def dashboard(
             except Exception as e:
                 print(f"⚠ 정렬 오류: {e}")
 
-        # 요약행 생성
         sum_cols = [
             "일반후불", "010", "MNP", "기변", "중고", "5G", "3G/LTE", "100K이상", "초이스4종",
             "유선신규 I+T", "유선신규 I", "유선신규 T", "유선약갱 I+T", "유선약갱 I", "유선약갱 T",
             "MIT(M) 합계", "MIT(M) 신규", "MIT(M) 약갱", "MIT(I) 합계", "MIT(I) 신규", "MIT(I) 약갱",
-            "신동", "S25", "AIP16",
+            "신동", "S25", "AIP16", "신동모수",
             "M-3 무선(M)", "M-2 무선(M)", "M-1 무선(M)", "M-3 무선(대)", "M-2 무선(대)", "M-1 무선(대)",
             "M-3 유선신규(M)", "M-2 유선신규(M)", "M-1 유선신규(M)", "M-3 유선신규(대)", "M-2 유선신규(대)", "M-1 유선신규(대)"
         ]
+
         summary = {}
         for col in df.columns:
             if col in base_columns:
@@ -504,9 +496,9 @@ async def dashboard(
 
         if "신동률" in df.columns:
             try:
-                신동 = float(summary.get("신동", 0) or 0)
-                mnp = float(summary.get("MNP", 0) or 0)
-                summary["신동률"] = f"{round((신동 / mnp) * 100, 1)}%" if mnp > 0 else "--"
+                신동 = pd.to_numeric(df["신동"], errors='coerce').sum(skipna=True)
+                신동모수 = pd.to_numeric(df["신동모수"], errors='coerce').sum(skipna=True)
+                summary["신동률"] = f"{round((신동 / 신동모수) * 100, 1)}%" if 신동모수 > 0 else "--"
             except:
                 summary["신동률"] = "--"
 
@@ -543,6 +535,8 @@ async def dashboard(
         "table_html": table_html,
         "mode": mode
     })
+
+
 
 # ✅ 한마디 게시판 메인 페이지
 
