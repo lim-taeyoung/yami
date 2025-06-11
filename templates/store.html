@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-
 <style>
   html, body {
     margin: 0;
@@ -17,8 +16,7 @@
     table-layout: auto;
   }
 
-  .table th,
-  .table td {
+  .table th, .table td {
     padding: 2px 8px;
     border: 1px solid #ddd;
     text-align: center;
@@ -35,15 +33,11 @@
     cursor: pointer;
   }
 
-  .edit-button:hover {
-    background-color: #555;
-  }
-
+  .edit-button:hover { background-color: #555; }
   .delete-button {
     background-color: #d9534f;
     font-size: 16px;
   }
-
   .delete-button:hover {
     background-color: #c9302c;
   }
@@ -64,15 +58,69 @@
     margin-bottom: 12px;
   }
 
-  .upload-block form {
+  .upload-block {
     display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  .upload-row {
+    display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 24px;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .upload-section {
+    flex: 1 1 0;
+    max-width: 33%;
+    min-width: 300px;
+    padding: 9px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #f8f8f8;
+    box-sizing: border-box;
+  }
+
+  .upload-section h3 {
+    margin-top: 0;
+    font-size: 1.2rem;
+  }
+
+  .upload-section form {  
+    display: flex;
+    flex-wrap: nowrap;
     align-items: center;
-    background-color: #f9f9f9;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    gap: 8px;
+  }
+
+  .upload-section input[type="file"],
+  .upload-section select,
+  .upload-section input[type="text"] {
+    font-size: 1rem;
+    padding: 6px;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 100px;
+  }
+
+  .upload-section button {
+    padding: 6px 12px;
+    font-size: 1rem;
+    background-color: #283ba7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 80px;
+  }
+
+  .upload-section button:hover {
+    filter: brightness(1.1);
   }
 
   .search-row {
@@ -88,26 +136,25 @@
 
   .search-row form {
     display: flex;
-    flex-wrap: wrap;
-    width: 100%;
+    flex-wrap: nowrap;
     gap: 8px;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
   }
 
   .search-row select,
-  .search-row input {
-    flex: 1 1 25%;
-    min-width: 80px;
+  .search-row input,
+  .search-row button {
+    width: 20%;
+    min-width: 120px;
     height: 48px;
-    font-size: 24px;
-    box-sizing: border-box;
+    font-size: 20px;
   }
 
-  /* ✅ 공통 버튼 스타일 */
   .action-button,
   a.action-button {
     display: inline-block;
-    width: 300px;
-    height: 48px;
     font-size: 24px;
     padding: 6px 12px;
     text-align: center;
@@ -117,35 +164,36 @@
     color: white;
     cursor: pointer;
     box-sizing: border-box;
+    width: 100%;
   }
 
-  .action-button.blue {
-    background-color: #283ba7;
-  }
-
-  .action-button.burgundy {
-    background-color: #800020;
-  }
+  .action-button.blue { background-color: #283ba7; }
+  .action-button.burgundy { background-color: #800020; }
 
   .action-button:hover {
     filter: brightness(1.1);
   }
 
-  @media (max-width: 768px) {
-    .search-row select,
-    .search-row input {
-      flex: 1 1 50%;
-    }
-
-    .action-button,
-    a.action-button {
-      width: 100% !important;
-    }
-  }
-
   .table-wrapper {
     overflow-x: auto;
     width: 100vw;
+  }
+
+  @media (max-width: 768px) {
+    .upload-section {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+
+    .search-row select,
+    .search-row input,
+    .search-row button {
+      width: 100%;
+    }
+
+    .upload-row {
+      flex-direction: column;
+    }
   }
 </style>
 
@@ -154,39 +202,115 @@
   <button class="delete-button" onclick="enableDeleteMode()">🗑️ 접점 삭제</button>
 </div>
 
-{% if request.session.get('user_role') == 'admin' %}
-<div class="upload-block">
-  <form method="post" action="/init-store" enctype="multipart/form-data">
-    <label style="font-weight: bold;">📤 접점관리 엑셀 업로드 (처음 1회만)</label>
-    <input type="file" name="file" accept=".xlsx" required>
-    <button type="submit" class="main-button">업로드</button>
-  </form>
-</div>
-{% endif %}
-
 <h1>🏪 접점 관리</h1>
 
+{% if request.session.get('user_role') == 'admin' %}
+<div class="upload-block">
+  <div class="upload-row">
+
+    <!-- 전사 -->
+    <div class="upload-section">
+      <h3>📊 전사 접점관리</h3>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+        <form method="post" action="/init-store" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+          <input type="file" name="file" accept=".xlsx" required>
+          <button type="submit">업로드</button>
+        </form>
+        <form method="get" action="/store/export">
+          <button type="submit">다운로드</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 지사 -->
+    <div class="upload-section">
+      <h3>📍 지사별 접점관리</h3>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+        <form method="post" action="/store/region-upload" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+          <select name="region" id="region-select" required style="width: 100px">
+            <option value=""> 지사 선택 </option>
+            {% for region in ["강북", "강원", "강남", "강서", "부산", "대구", "충청", "호남"] %}
+              <option value="{{ region }}">{{ region }}</option>
+            {% endfor %}
+          </select>
+          <input type="file" name="file" accept=".xlsx" required style="width: 200px">
+          <button type="submit">업로드</button>
+        </form>
+        <form method="get" action="/store/region-export" onsubmit="return syncRegionSelect();" style="display: flex; justify-content: flex-end;">
+          <input type="hidden" name="region" id="download-region-hidden">
+          <button type="submit">다운로드</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 센터 -->
+    <div class="upload-section">
+      <h3>🏢 센터별 접점관리</h3>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+        <form method="post" action="/store/center-upload" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+          <input type="text" name="center_name" id="center-select" placeholder="센터명 입력" required style="width: 70px">
+          <input type="file" name="file" accept=".xlsx" required style="width: 200px">
+          <button type="submit">업로드</button>
+        </form>
+        <form method="get" action="/store/center-export" onsubmit="return syncCenterSelect();" style="display: flex; justify-content: flex-end;">
+          <input type="hidden" name="center_name" id="download-center-hidden">
+          <button type="submit">다운로드</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="font-size: 20px; color: #c00; font-weight: bold; margin: 16px 0;">
+  ※ 업로드 파일의 시트명은 <span style="text-decoration: underline;">'강북 호남 서대전 동부산'</span>등 소속에 맞는 지사/센터명으로 되어있어야합니다!!
+</p>
+
+<script>
+  function syncRegionSelect() {
+    const region = document.getElementById("region-select")?.value;
+    if (!region) {
+      alert("지사를 선택해주세요.");
+      return false;
+    }
+    document.getElementById("download-region-hidden").value = region;
+    return true;
+  }
+
+  function syncCenterSelect() {
+    const center = document.getElementById("center-select")?.value;
+    if (!center || center.trim() === "") {
+      alert("센터명을 입력해주세요.");
+      return false;
+    }
+    document.getElementById("download-center-hidden").value = center.trim();
+    return true;
+  }
+</script>
+{% endif %}
+
+<!-- 검색 + 신규 추가 버튼 한 줄에 -->
 <div class="search-row">
-  <form method="get" action="/store">
-    <select name="search_column">
+  <form method="get" action="/store" style="display: flex; flex: 1; gap: 8px; align-items: center;">
+    <select name="search_column" style="flex: 0 0 auto; min-width: 120px; height: 48px; font-size: 20px;">
       <option value="사번" {% if search_column == '사번' %}selected{% endif %}>사번</option>
       <option value="지사" {% if search_column == '지사' %}selected{% endif %}>지사</option>
       <option value="센터" {% if search_column == '센터' %}selected{% endif %}>센터</option>
       <option value="접점코드" {% if search_column == '접점코드' %}selected{% endif %}>접점코드</option>
     </select>
-    <input type="text" name="search_value" value="{{ search_value or '' }}" placeholder="검색어 입력">
-    <button type="submit" class="main-button">🔍 검색</button>
+    <input type="text" name="search_value" value="{{ search_value or '' }}" placeholder="검색어 입력" style="flex: 1; height: 48px; font-size: 20px;">
+    <button type="submit" class="main-button" style="height: 48px;">🔍 검색</button>
   </form>
 
-  <!-- ✅ 통일된 버튼 구조 -->
-  <button class="action-button blue" onclick="addNewRow()">➕ 신규 접점 추가</button>
-  <a href="/store/export" class="action-button burgundy">📁 엑셀 다운로드</a>
+  <button class="action-button blue" onclick="addNewRow()" style="height: 48px; margin-left: 12px;">➕ 신규 접점 추가</button>
 </div>
+
 
 {% if not search_value %}
 <p style="font-size: 20px; margin-top: 20px;">🔍 검색어를 입력하면 결과가 표시됩니다.</p>
 {% endif %}
 
+<!-- 테이블 영역 -->
 <div class="table-wrapper">
   <form id="store-form" method="post" action="/store/create" onsubmit="return validateNewRow();">
     <table class="table table-striped" id="store-table">
@@ -194,7 +318,7 @@
         <tr>
           <th style="width: 60px;">작업</th>
           {% for col in columns %}
-          <th>{{ col }}</th>
+            <th>{{ col }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -205,9 +329,9 @@
             <button type="button" class="edit-button" data-code="{{ row['접점코드'] }}">수정</button>
           </td>
           {% for col in columns %}
-          <td class="cell" data-code="{{ row['접점코드'] }}" data-col="{{ col }}">
-            {{ row[col] }}
-          </td>
+            <td class="cell" data-code="{{ row['접점코드'] }}" data-col="{{ col }}">
+              {{ row[col] }}
+            </td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -217,7 +341,7 @@
 </div>
 
 <script>
-  // 기존 스크립트 블록 유지
+  // JS 함수 자리: addNewRow, validateNewRow, enableDeleteMode 등 필요 시 여기에 작성
 </script>
 
 {% endblock %}

@@ -26,6 +26,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from settings import DATABASE_URL
 
+from urllib.parse import quote
+
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.add_middleware(SessionMiddleware, secret_key="supersecret123!@#")
@@ -1240,38 +1242,27 @@ async def store_page(
 ):
     entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
 
-    # ✅ entry가 없고 관리자가 아니면 메시지 출력
     if not entry and request.session.get("user_role") != "admin":
         return HTMLResponse("<h3>❌ 저장된 접점관리 데이터가 없습니다.</h3>")
 
-    # ✅ entry가 없지만 admin이면 빈 테이블 보여주기
     if not entry:
         df = pd.DataFrame()
         columns = []
         data = []
     else:
         df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
-
-        # ✅ 컬럼명 정리: 공백 제거 + BOM 제거
-        df.columns = pd.Index([
-            str(col).strip().replace('\ufeff', '') if isinstance(col, str) else col
-            for col in df.columns
-        ])
-
-        # ✅ 값 정리: 문자열 공백 제거
+        df.columns = pd.Index([str(col).strip().replace('\ufeff', '') for col in df.columns])
         df = df.apply(lambda col: col.map(lambda x: x if pd.isnull(x) else str(x).strip()))
 
-        # ✅ 사번, 이름 컬럼이 없다면 생성
         if "사번" not in df.columns:
             df["사번"] = ""
         if "이름" not in df.columns:
             df["이름"] = ""
 
-        # ✅ 검색 적용
         if search_value and search_column in df.columns:
             df = df[df[search_column].astype(str).str.contains(search_value, case=False, regex=False)]
         else:
-            df = df.iloc[0:0]  # 🔧 검색어 없을 경우 데이터 없이 컬럼만 유지
+            df = df.iloc[0:0]
 
         columns = df.columns.tolist()
         data = df.to_dict(orient="records")
@@ -1406,6 +1397,169 @@ async def delete_store(code: str = Form(...), db: Session = Depends(get_db)):
 
     return RedirectResponse("/store", status_code=303)
 
+
+
+@app.post("/store/region-upload")
+async def upload_region_store(region: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # ✅ form에서 받은 값 정리 (strip + lower)
+    region = region.strip().lower()
+
+    # ✅ 엑셀 파일 안전하게 읽기 (FastAPI UploadFile 스트림 문제 대응)
+    content = await file.read()
+    try:
+        df_new = pd.read_excel(BytesIO(content), sheet_name=region)
+    except ValueError:
+            return HTMLResponse(f"<script>alert('❌ 엑셀에 \"{region}\" 시트가 없습니다.'); history.back();</script>")
+
+    df_new.columns = [col.strip().replace("\ufeff", "") for col in df_new.columns]  # BOM 제거 등
+
+    # ✅ 지사 컬럼 존재 확인
+    if "지사" not in df_new.columns:
+        return HTMLResponse("<script>alert('❌ 업로드 파일에 지사 컬럼이 없습니다.'); history.back();</script>")
+
+    # ✅ 지사 컬럼 정규화 (strip + lower)
+    df_new["지사"] = df_new["지사"].astype(str).fillna("").str.strip().str.lower()
+
+    # ✅ 업로드된 엑셀 중 선택된 지사 데이터만 필터
+    df_new_filtered = df_new[df_new["지사"] == region]
+
+    # ✅ 디버깅용 로그
+    print("📌 선택한 지사(region):", repr(region))
+    print("📌 엑셀 내 지사들:", df_new["지사"].unique().tolist())
+    print("📌 필터된 행 수:", len(df_new_filtered))
+
+    if df_new_filtered.empty:
+        return HTMLResponse(f"<script>alert('❌ 엑셀에 \"{region}\" 지사 데이터가 없습니다.'); history.back();</script>")
+
+    # ✅ 기존 DB 데이터 불러오기
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("<script>alert('❌ 기존 데이터가 없습니다.'); location.href='/store';</script>")
+
+    # ✅ 기존 데이터에서 선택된 지사 제외
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    df["지사"] = df["지사"].fillna("").astype(str).str.strip().str.lower()
+    df_other = df[df["지사"] != region]
+
+    # ✅ 새 지사 데이터로 덮어쓰기
+    df_combined = pd.concat([df_other, df_new_filtered], ignore_index=True)
+    entry.data = df_combined.to_json(force_ascii=False, orient="records")
+    db.commit()
+
+    return HTMLResponse("<script>alert('✅ 지사별 데이터 업로드 완료'); location.href='/store';</script>")
+
+
+
+@app.get("/store/region-export")
+async def export_region_store(region: str, db: Session = Depends(get_db)):
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("❌ 저장된 데이터가 없습니다.")
+
+    region = region.strip()
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    df["지사"] = df["지사"].fillna("").astype(str).str.strip()
+
+    df_region = df[df["지사"] == region]
+    if df_region.empty:
+        return HTMLResponse(f"<script>alert('❌ \"{region}\" 지사 데이터가 없습니다.'); history.back();</script>")
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df_region.to_excel(writer, index=False, sheet_name=region)
+    output.seek(0)
+
+    filename = f"{region}_접점관리.xlsx"
+    quoted = quote(filename)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quoted}"
+        }
+    )
+
+
+@app.post("/store/center-upload")
+async def upload_center_store(center_name: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # ✅ 사용자 입력값 정제
+    center_name = center_name.strip().lower()
+
+    # ✅ 파일 안전하게 읽기
+    content = await file.read()
+    try:
+        df_new = pd.read_excel(BytesIO(content), sheet_name=center_name)
+    except ValueError as e:
+        return HTMLResponse(f"<script>alert('❌ 엑셀에 \"{center_name}\" 시트가 없습니다.'); history.back();</script>")
+
+    df_new.columns = [col.strip().replace("\ufeff", "") for col in df_new.columns]
+
+    # ✅ 센터 컬럼 확인
+    if "센터" not in df_new.columns:
+        return HTMLResponse("<script>alert('❌ 업로드 파일에 센터 컬럼이 없습니다.'); history.back();</script>")
+
+    # ✅ 센터 컬럼 정규화
+    df_new["센터"] = df_new["센터"].astype(str).fillna("").str.strip().str.lower()
+
+    # ✅ 업로드된 엑셀 중 해당 센터만 필터
+    df_new_filtered = df_new[df_new["센터"] == center_name]
+
+    # ✅ 디버깅 로그
+    print("📌 선택한 센터(center_name):", repr(center_name))
+    print("📌 엑셀 내 센터들:", df_new["센터"].unique().tolist())
+    print("📌 필터된 행 수:", len(df_new_filtered))
+
+    if df_new_filtered.empty:
+        return HTMLResponse(f"<script>alert('❌ 엑셀에 \"{center_name}\" 센터 데이터가 없습니다.'); history.back();</script>")
+
+    # ✅ 기존 DB 데이터 로드 및 센터 정규화
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("<script>alert('❌ 기존 데이터가 없습니다.'); location.href='/store';</script>")
+
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    df["센터"] = df["센터"].fillna("").astype(str).str.strip().str.lower()
+
+    # ✅ 해당 센터 제외한 데이터 유지 후 병합
+    df_other = df[df["센터"] != center_name]
+    df_combined = pd.concat([df_other, df_new_filtered], ignore_index=True)
+
+    # ✅ 저장
+    entry.data = df_combined.to_json(force_ascii=False, orient="records")
+    db.commit()
+
+    return HTMLResponse("<script>alert('✅ 센터별 데이터 업로드 완료'); location.href='/store';</script>")
+
+
+@app.get("/store/center-export")
+async def export_center_store(center_name: str, db: Session = Depends(get_db)):
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("❌ 저장된 데이터가 없습니다.")
+
+    center_name = center_name.strip()
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    df["센터"] = df["센터"].fillna("").astype(str).str.strip()
+    df_center = df[df["센터"] == center_name]
+    if df_center.empty:
+        return HTMLResponse(f"<script>alert('❌ \"{center_name}\" 센터 데이터가 없습니다.'); history.back();</script>")
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df_center.to_excel(writer, index=False, sheet_name=center_name)
+    output.seek(0)
+
+    filename = f"{center_name}_접점관리.xlsx"
+    quoted = quote(filename)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quoted}"
+        }
+    )
 
 @app.get("/infra", response_class=HTMLResponse)
 async def infra_page(
