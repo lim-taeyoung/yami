@@ -58,72 +58,7 @@
     margin-bottom: 12px;
   }
 
-  .upload-block {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    margin-bottom: 30px;
-  }
-
-  .upload-row {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 24px;
-    justify-content: space-between;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .upload-section {
-    flex: 1 1 0;
-    max-width: 33%;
-    min-width: 300px;
-    padding: 9px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background: #f8f8f8;
-    box-sizing: border-box;
-  }
-
-  .upload-section h3 {
-    margin-top: 0;
-    font-size: 1.2rem;
-  }
-
-  .upload-section form {  
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .upload-section input[type="file"],
-  .upload-section select,
-  .upload-section input[type="text"] {
-    font-size: 1rem;
-    padding: 6px;
-    width: auto;
-    flex: 1 1 auto;
-    min-width: 100px;
-  }
-
-  .upload-section button {
-    padding: 6px 12px;
-    font-size: 1rem;
-    background-color: #283ba7;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    min-width: 80px;
-  }
-
-  .upload-section button:hover {
-    filter: brightness(1.1);
-  }
-
-  .search-row {
+    .search-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -133,8 +68,7 @@
     width: 100vw;
     box-sizing: border-box;
   }
-
-  .search-row form {
+    .search-row form {
     display: flex;
     flex-wrap: nowrap;
     gap: 8px;
@@ -142,7 +76,6 @@
     justify-content: center;
     align-items: center;
   }
-
   .search-row select,
   .search-row input,
   .search-row button {
@@ -195,6 +128,32 @@
       flex-direction: column;
     }
   }
+  .upload-block {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .upload-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 24px;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .upload-section {
+    flex: 1;
+    min-width: 280px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #f8f8f8;
+    padding: 12px;
+  }
+  .upload-section form button {
+    width: 100%;
+    box-sizing: border-box;
+  }
 </style>
 
 <div class="top-buttons">
@@ -211,52 +170,46 @@
     <!-- 전사 -->
     <div class="upload-section">
       <h3>📊 전사 접점관리</h3>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        <form method="post" action="/init-store" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
-          <input type="file" name="file" accept=".xlsx" required>
-          <button type="submit">업로드</button>
-        </form>
-        <form method="get" action="/store/export">
-          <button type="submit">다운로드</button>
-        </form>
-      </div>
+      <form method="post" action="/init-store" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
+        <input type="file" name="file" accept=".xlsx" required>
+        <button type="submit">업로드</button>
+      </form>
+      <form method="get" action="/store/export" style="margin-top: 8px;">
+        <button type="submit">다운로드</button>
+      </form>
     </div>
 
     <!-- 지사 -->
     <div class="upload-section">
       <h3>📍 지사별 접점관리</h3>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        <form method="post" action="/store/region-upload" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
-          <select name="region" id="region-select" required style="width: 100px">
-            <option value=""> 지사 선택 </option>
-            {% for region in ["강북", "강원", "강남", "강서", "부산", "대구", "충청", "호남"] %}
-              <option value="{{ region }}">{{ region }}</option>
-            {% endfor %}
-          </select>
-          <input type="file" name="file" accept=".xlsx" required style="width: 200px">
-          <button type="submit">업로드</button>
-        </form>
-        <form method="get" action="/store/region-export" onsubmit="return syncRegionSelect();" style="display: flex; justify-content: flex-end;">
-          <input type="hidden" name="region" id="download-region-hidden">
-          <button type="submit">다운로드</button>
-        </form>
-      </div>
+      <form method="post" action="/store/region-upload" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
+        <select name="region" id="region-select" required>
+          <option value=""> 지사 선택 </option>
+          {% for region in ["강북", "강원", "강남", "강서", "부산", "대구", "충청", "호남"] %}
+            <option value="{{ region }}">{{ region }}</option>
+          {% endfor %}
+        </select>
+        <input type="file" name="file" accept=".xlsx" required>
+        <button type="submit">업로드</button>
+      </form>
+      <form method="get" action="/store/region-export" onsubmit="return syncRegionSelect();" style="margin-top: 8px;">
+        <input type="hidden" name="region" id="download-region-hidden">
+        <button type="submit">다운로드</button>
+      </form>
     </div>
 
     <!-- 센터 -->
     <div class="upload-section">
       <h3>🏢 센터별 접점관리</h3>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        <form method="post" action="/store/center-upload" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
-          <input type="text" name="center_name" id="center-select" placeholder="센터명 입력" required style="width: 70px">
-          <input type="file" name="file" accept=".xlsx" required style="width: 200px">
-          <button type="submit">업로드</button>
-        </form>
-        <form method="get" action="/store/center-export" onsubmit="return syncCenterSelect();" style="display: flex; justify-content: flex-end;">
-          <input type="hidden" name="center_name" id="download-center-hidden">
-          <button type="submit">다운로드</button>
-        </form>
-      </div>
+      <form method="post" action="/store/center-upload" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
+        <input type="text" name="center_name" id="center-select" placeholder="센터명 입력" required>
+        <input type="file" name="file" accept=".xlsx" required>
+        <button type="submit">업로드</button>
+      </form>
+      <form method="get" action="/store/center-export" onsubmit="return syncCenterSelect();" style="margin-top: 8px;">
+        <input type="hidden" name="center_name" id="download-center-hidden">
+        <button type="submit">다운로드</button>
+      </form>
     </div>
 
   </div>
@@ -265,28 +218,6 @@
 <p style="font-size: 20px; color: #c00; font-weight: bold; margin: 16px 0;">
   ※ 업로드 파일의 시트명은 <span style="text-decoration: underline;">'강북 호남 서대전 동부산'</span>등 소속에 맞는 지사/센터명으로 되어있어야합니다!!
 </p>
-
-<script>
-  function syncRegionSelect() {
-    const region = document.getElementById("region-select")?.value;
-    if (!region) {
-      alert("지사를 선택해주세요.");
-      return false;
-    }
-    document.getElementById("download-region-hidden").value = region;
-    return true;
-  }
-
-  function syncCenterSelect() {
-    const center = document.getElementById("center-select")?.value;
-    if (!center || center.trim() === "") {
-      alert("센터명을 입력해주세요.");
-      return false;
-    }
-    document.getElementById("download-center-hidden").value = center.trim();
-    return true;
-  }
-</script>
 {% endif %}
 
 <!-- 검색 + 신규 추가 버튼 한 줄에 -->
@@ -340,8 +271,7 @@
   </form>
 </div>
 
-<script>
-  // JS 함수 자리: addNewRow, validateNewRow, enableDeleteMode 등 필요 시 여기에 작성
 </script>
+
 
 {% endblock %}
