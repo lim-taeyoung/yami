@@ -2,53 +2,55 @@
 
 {% block content %}
 <div class="header-row">
-    <h1>📦 모델별 현황</h1>
-    <a href="/main"><button type="button" class="main-button">🏠 메인으로</button></a>
+    <h1>📱 모델별 현황</h1>
+    <div class="top-right-button">
+        <a href="/main"><button type="button" class="main-button">🏠 메인으로</button></a>
+    </div>
 </div>
 
 <form method="get" action="/model-status" class="search-form">
     <div class="search-top-section">
-        <div class="search-grid">
-            <div class="search-left">
+        <div class="search-paired-grid">
+            <div class="pair-column">
                 <select name="search_field">
                     <option value="사번" {% if search_field in [None, '', '사번'] %}selected{% endif %}>사번</option>
                     <option value="지사" {% if search_field == "지사" %}selected{% endif %}>지사</option>
                     <option value="센터" {% if search_field == "센터" %}selected{% endif %}>센터</option>
                     <option value="접점코드" {% if search_field == "접점코드" %}selected{% endif %}>접점코드</option>
                 </select>
-
                 <input type="text" name="search_value" placeholder="검색어 입력" value="{{ search_value or '' }}">
             </div>
-
-            <div class="search-right">
+            <div class="pair-column">
                 <div class="filter-method-box">
                     <label><input type="radio" name="filter_mode" value="text" checked onchange="toggleFilterMode('text')"> 모델명 검색</label>
                     <input type="text" id="model_text" name="model_text" placeholder="예: S25" value="{{ model_text or '' }}">
                 </div>
-
                 <div class="filter-method-box model-select-container">
                     <label><input type="radio" name="filter_mode" value="select" onchange="toggleFilterMode('select')"> 모델 다중선택</label>
-                    <select name="model_list" id="model_list" multiple size="7" disabled>
-                        {% for model in model_options %}
-                            <option value="{{ model }}" {% if model in selected_models %}selected{% endif %}>{{ model }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="button" class="reset-button-inline" onclick="resetModelSelection()" disabled>체크해제</button>
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        <select name="model_list" id="model_list" multiple size="7" disabled style="flex: 1 1 80%;">
+                            {% for model in model_options %}
+                                <option value="{{ model }}" {% if model in selected_models %}selected{% endif %}>{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="reset-button-inline" onclick="resetModelSelection()" disabled>체크해제</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="search-actions">
-        <button type="submit" name="exclude_branch" value="false" class="search-button">🔍 검색하기</button>
-        <button type="submit" name="exclude_branch" value="true" class="search-button">🔍 검색하기(접점제외)</button>
+    <div class="search-actions horizontal-buttons">
+        <button type="submit" name="exclude_branch" value="false" class="search-button"> 1️⃣검색</button>
+        <button type="submit" name="exclude_branch" value="true" class="search-button">2️⃣ 검색(접점제외)</button>
+        <button type="submit" name="exclude_center" value="true" class="search-button">3️⃣ 검색(센터,접점제외)</button>
     </div>
 </form>
 
 <hr>
 
 {% if table_html %}
-    <div id="table-wrapper" class="table-scroll {% if request.query_params.get('exclude_branch') == 'true' %}exclude-branch{% else %}exclude-none{% endif %}">
+    <div id="table-wrapper" class="table-scroll {% if request.query_params.get('exclude_center') == 'true' %}exclude-center{% elif request.query_params.get('exclude_branch') == 'true' %}exclude-branch{% else %}exclude-none{% endif %}">
         {{ table_html | safe }}
     </div>
 {% else %}
@@ -81,35 +83,6 @@ function toggleFilterMode(mode) {
 </script>
 
 <style>
-/* ✅ 사번 / 이름 숨김: 검색하기 버튼일 경우만 */
-#table-wrapper.exclude-none th:contains("사번"),
-#table-wrapper.exclude-none td:nth-child(1),
-#table-wrapper.exclude-none th:contains("이름"),
-#table-wrapper.exclude-none td:nth-child(2) {
-    display: none;
-}
-
-/* 접점제외일 경우: 접점코드 / 접점명 숨김 */
-#table-wrapper.exclude-branch th:contains("접점코드"),
-#table-wrapper.exclude-branch td:nth-child(5),
-#table-wrapper.exclude-branch th:contains("접점명"),
-#table-wrapper.exclude-branch td:nth-child(6) {
-    display: none;
-}
-
-/* ✅ 합계 행 스타일 */
-.summary-row td {
-    background-color: #eaf6ff !important;
-    font-weight: bold;
-}
-
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    overflow-x: hidden;
-}
-
 .header-row {
     display: flex;
     justify-content: space-between;
@@ -117,151 +90,59 @@ body, html {
     padding: 0 10px;
 }
 
-.main-button {
-    font-size: 24px;
-    padding: 12px 20px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    cursor: pointer;
+.top-right-button {
+    margin-left: auto;
 }
 
-.search-form {
-    width: 100%;
-    font-size: 24px;
-    box-sizing: border-box;
-    padding: 0 10px;
-}
-
-.search-top-section {
-    width: 100%;
-}
-
-.search-grid {
+.search-paired-grid {
     display: flex;
-    flex-direction: row;
+    justify-content: space-between;
     gap: 20px;
     flex-wrap: wrap;
-    width: 100%;
 }
 
-.search-left {
+.pair-column {
     flex: 1;
-    min-width: 260px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.search-left select,
-.search-left input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    font-size: 24px;
-    box-sizing: border-box;
-}
-
-.search-right {
-    flex: 2;
+    min-width: 280px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    min-width: 300px;
 }
 
-.filter-method-box {
+.search-actions.horizontal-buttons {
     display: flex;
-    align-items: center;
-    gap: 12px;
     flex-wrap: wrap;
-}
-
-.filter-method-box input[type="text"] {
-    flex: 1;
-    padding: 10px;
-    font-size: 24px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.model-select-container {
-    flex-wrap: nowrap;
-}
-
-.model-select-container select {
-    flex: 5;
-    padding: 12px;
-    font-size: 24px;
-}
-
-.reset-button-inline {
-    margin-left: 8px;
-    font-size: 20px;
-    padding: 12px;
-    height: 100%;
-    white-space: nowrap;
-}
-
-.search-actions {
-    display: flex;
-    gap: 8px;
+    justify-content: space-between;
     margin-top: 10px;
-    flex-direction: column;
 }
 
-.search-button {
+.search-actions.horizontal-buttons .search-button {
+    width: 32%;
+    min-width: 100px;
+    font-size: 22px;
     padding: 12px;
-    font-size: 24px;
-    width: 100%;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    cursor: pointer;
+    margin: 0;
+    box-sizing: border-box;
+    background-color: #0003a4;
+    color: #fff !important;
 }
 
-.search-button.gray {
-    background-color: #6c757d;
-}
-
-.table-scroll {
-    overflow-x: auto;
-    width: 100%;
-}
-
-.table {
-    min-width: 800px;
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    font-size: 24px;
-}
-
-.table th, .table td {
-    border: 1px solid #ccc;
-    padding: 2px 8px;
-    text-align: center;
-}
-
-.table th {
-    background-color: #f2f2f2;
+/* ✅ 접점 관련 컬럼 숨기기 (센터,접점제외일 때) */
+#table-wrapper.exclude-center th:nth-child(3),
+#table-wrapper.exclude-center td:nth-child(3),
+#table-wrapper.exclude-center th:nth-child(4),
+#table-wrapper.exclude-center td:nth-child(4) {
+    display: none;
 }
 
 @media (max-width: 768px) {
-    .search-grid {
+    .search-actions.horizontal-buttons {
         flex-direction: column;
     }
-    .reset-button-inline {
+
+    .search-actions.horizontal-buttons .search-button {
         width: 100%;
-    }
-    .header-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    .main-button {
-        width: 100%;
-    }
-    .search-actions {
-        flex-direction: column;
+        margin-bottom: 8px;
     }
 }
 </style>

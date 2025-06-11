@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>신규가입 신청 목록</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 960px;
+            margin: auto;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        h2 {
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        button {
+            padding: 8px 14px;
+            font-size: 0.95rem;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3e8e41;
+        }
+        .actions {
+            margin-top: 16px;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .main-button {
+            background-color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>📝 가입 승인 대기 목록</h2>
+        {% if signup_requests %}
+        <form method="post" action="/admin/approve-multiple-signups">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onclick="toggleAll(this)"></th>
+                        <th>아이디</th>
+                        <th>이름</th>
+                        <th>지사</th>
+                        <th>센터</th>
+                        <th>직책</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in signup_requests %}
+                    <tr>
+                        <td><input type="checkbox" name="usernames" value="{{ user.username }}"></td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.team1 }}</td>
+                        <td>{{ user.team2 }}</td>
+                        <td>{{ user.level }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="actions">
+                <a href="/main"><button type="button" class="main-button">🏠 메인으로</button></a>
+                <button type="submit">✅ 선택 승인</button>
+            </div>
+        </form>
+        <script>
+            function toggleAll(source) {
+                const checkboxes = document.querySelectorAll('input[name="usernames"]');
+                checkboxes.forEach(cb => cb.checked = source.checked);
+            }
+        </script>
+        {% else %}
+        <p style="text-align:center;">📭 승인 대기 중인 신청이 없습니다.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

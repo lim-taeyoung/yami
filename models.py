@@ -1,7 +1,9 @@
 # models.py
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
 from sqlalchemy.orm import declarative_base
+from database import Base
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -54,3 +56,13 @@ class SiteSettings(Base):
     title = Column(String)
     notice = Column(Text)        # 공지사항 본문
     issue = Column(Text)         # 이슈사항 본문
+
+class SignupRequest(Base):
+    __tablename__ = "signup_requests"
+    username = Column(String, primary_key=True)
+    password = Column(String)
+    name = Column(String)
+    team1 = Column(String)
+    team2 = Column(String)
+    level = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)

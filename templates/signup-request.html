@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>신규가입 신청</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .signup-container {
+            max-width: 480px;
+            margin: 60px auto;
+            padding: 24px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            text-align: left;
+        }
+        .signup-container h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        input {
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        .hint {
+            font-size: 0.85rem;
+            color: gray;
+            margin-bottom: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        function validateForm() {
+            const pw = document.getElementById("password").value;
+            const confirm = document.getElementById("confirm_password").value;
+            if (pw !== confirm) {
+                alert("비밀번호를 다시 확인해주세요.");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <div class="signup-container">
+        <h1>📝 신규가입 신청</h1>
+        <form method="post" action="/signup-request" onsubmit="return validateForm()">
+            <label for="username">아이디 (사번)</label>
+            <input type="text" id="username" name="username" required>
+            <div class="hint">1로 시작하는 7자리 사번 입력해주세요</div>
+
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="confirm_password">비밀번호 확인</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+
+            <label for="name">이름</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="team1">지사</label>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                <input type="text" id="team1" name="team1" required style="width: 30%;">
+                <span class="hint" style="font-size: 1.7rem; font-weight: bold; margin: 0;">도매지사</span>
+            </div>
+
+            <label for="team2">센터</label>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                <input type="text" id="team2" name="team2" required style="width: 30%;">
+                <span class="hint" style="font-size: 1.7rem; font-weight: bold; margin: 0;">도매센터</span>
+            </div>
+            
+            <label for="level">직책</label>
+            <input type="text" id="level" name="level" required>
+
+            <input type="hidden" name="role" value="사용자">
+
+            <button type="submit">✅ 아이디 신청</button>
+        </form>
+    </div>
+</body>
+</html>

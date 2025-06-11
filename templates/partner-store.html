@@ -21,7 +21,7 @@
     </div>
 
     <fieldset style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 20px;">
-        <legend>콜론 보기 옵션</legend>
+        <legend>✅ 정보 선택하기</legend>
         <label>
             <input type="checkbox" name="column_filter" value="실적확인"
                    onclick="handleCheckbox(this)"
@@ -208,6 +208,13 @@ window.addEventListener("load", adjustStickyColumnWidths);
     position: sticky;
     top: 0;
     z-index: 5;
+}
+
+input[type="checkbox"] {
+    width: 23px;
+    height: 23px;
+    transform: scale(1.4);  /* 좀 더 키우고 싶다면 숫자를 늘리면 됩니다 */
+    margin-right: 10px;     /* 텍스트와의 간격 */
 }
 
 

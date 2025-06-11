@@ -7,26 +7,22 @@ load_dotenv()
 from io import BytesIO
 from datetime import datetime
 from typing import List, Optional
-
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_datetime64_any_dtype
-
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text, DateTime
 from sqlalchemy.orm import sessionmaker, Session
 from database import Base
-from models import ExcelData, BoardReply, Store, SiteSettings 
+from models import ExcelData, BoardReply, Store, SiteSettings, SignupRequest
 from database import get_db, engine 
-
 from starlette.middleware.sessions import SessionMiddleware
-
+from starlette.templating import Jinja2Templates
 from settings import DATABASE_URL
-
 from urllib.parse import quote
+from datetime import datetime
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -112,6 +108,16 @@ class SiteSettings(Base):
     title = Column(String)
     notice = Column(Text)        # 공지사항 본문
     issue = Column(Text)         # 이슈사항 본문
+
+class SignupRequest(Base):
+    __tablename__ = "signup_requests"
+    username = Column(String, primary_key=True)
+    password = Column(String)
+    name = Column(String)
+    team1 = Column(String)
+    team2 = Column(String)
+    level = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     
 Base.metadata.create_all(bind=engine)
@@ -286,6 +292,82 @@ async def upload_users(file: UploadFile = File(...), db: Session = Depends(get_d
 
     db.commit()
     return RedirectResponse(url="/admin/users?username=admin", status_code=303)
+
+
+
+@app.get("/signup-request", response_class=HTMLResponse)
+async def signup_request_page(request: Request):
+    return templates.TemplateResponse("signup-request.html", {"request": request})
+
+
+@app.post("/signup-request", response_class=HTMLResponse)
+async def handle_signup_request(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    name: str = Form(...),
+    team1: str = Form(...),
+    team2: str = Form(...),
+    level: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if password != confirm_password:
+        return HTMLResponse("<script>alert('❌ 비밀번호가 일치하지 않습니다.'); history.back();</script>")
+
+    if not username.startswith("1") or len(username) != 7:
+        return HTMLResponse("<script>alert('❌ 아이디는 1로 시작하는 7자리 사번이어야 합니다.'); history.back();</script>")
+
+    if db.query(SignupRequest).filter_by(username=username).first():
+        return HTMLResponse("<script>alert('⚠ 이미 신청된 아이디입니다.'); history.back();</script>")
+
+    db.add(SignupRequest(
+        username=username,
+        password=password,
+        name=name,
+        team1=team1,
+        team2=team2,
+        level=level,
+    ))
+    db.commit()
+
+    return HTMLResponse("<script>alert('✅ 아이디 신청이 완료되었습니다. 관리자 승인 후 사용 가능합니다.'); location.href='/';</script>")
+
+
+@app.get("/admin/signup-requests", response_class=HTMLResponse)
+async def view_signup_requests(request: Request, db: Session = Depends(get_db)):
+    requests = db.query(SignupRequest).all()
+    return templates.TemplateResponse("admin/signup-requests.html", {
+        "request": request,
+        "signup_requests": requests
+    })
+
+@app.post("/admin/approve-multiple-signups")
+async def approve_multiple_signups(
+    request: Request,
+    usernames: List[str] = Form(...),
+    db: Session = Depends(get_db)
+):
+    for username in usernames:
+        req = db.query(SignupRequest).filter(SignupRequest.username == username).first()
+        if req:
+            db.add(User(
+                username=req.username,
+                password=req.password,
+                name=req.name,
+                team1=req.team1,
+                team2=req.team2,
+                level=req.level,
+                role="사용자자"
+            ))
+            db.delete(req)
+    db.commit()
+    return RedirectResponse("/admin/signup-requests", status_code=303)
+
+
+
+
+
 
 
 
@@ -966,7 +1048,6 @@ def daily_wireless_page(
         if "접점코드" in df.columns:
             df["접점코드"] = df["접점코드"].apply(lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>')
 
-                        # ✅ 합계 생성
         if not df.empty:
             numeric_cols = df.columns.difference(fixed_order)
             sum_row = {}
@@ -984,10 +1065,20 @@ def daily_wireless_page(
             sum_df = pd.DataFrame([sum_row])
             df = pd.concat([sum_df, df], ignore_index=True)
 
+            # ✅ '합계' 기준 내림차순 정렬 적용
+            if "합계" in df.columns:
+                try:
+                    df = df.iloc[1:]
+                    df["합계"] = pd.to_numeric(df["합계"], errors='coerce')
+                    df = df.sort_values(by="합계", ascending=False)
+                    df = pd.concat([sum_df, df], ignore_index=True)
+                except:
+                    pass
+
             table_html = df.to_html(classes="table sticky-header", index=False, escape=False)
+            table_html = table_html.replace("<tr>", "<tr class=\"sum-row\">", 1)
         else:
             table_html = "<p style='color:red; font-weight:bold;'>❌ 검색 결과가 없습니다.</p>"
-
 
     return templates.TemplateResponse("daily-wireless.html", {
         "request": request,
@@ -997,13 +1088,14 @@ def daily_wireless_page(
     })
 
 
-
 @app.get("/daily-wire", response_class=HTMLResponse)
 async def daily_wire_page(
     request: Request,
     selected_sheet: str = Query(None),
     search_column: str = Query("사번"),
     search_value: str = Query(None),
+    sort_column: str = Query("합계"),
+    sort_order: str = Query("desc"),
     db: Session = Depends(get_db)
 ):
     sheet_map = {
@@ -1030,7 +1122,6 @@ async def daily_wire_page(
                 df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
                 df.columns = [col.strip().replace(" ", "_") for col in df.columns]
 
-                # ✅ 접점코드 매핑
                 if "접점코드" in df.columns:
                     code_map = get_code_to_user_mapping(db)
                     df["사번"] = df.get("사번", "")
@@ -1043,25 +1134,20 @@ async def daily_wire_page(
                         if not df.at[idx, "이름"]:
                             df.at[idx, "이름"] = mapped.at[idx, "이름"]
 
-                # ✅ 컬럼 순서
                 fixed_order = ["사번", "이름", "지사", "센터", "접점코드", "접점명"]
                 other_cols = [col for col in df.columns if col not in fixed_order]
                 df = df[fixed_order + other_cols]
 
-                # ✅ 검색
                 if search_value:
                     if search_column in df.columns:
                         df = df[df[search_column].astype(str).str.contains(search_value, na=False)]
 
-                # ✅ 합계 생성
                 if not df.empty:
                     numeric_cols = df.columns.difference(fixed_order)
 
-                  # 접점코드 링크 처리
                     if "접점코드" in df.columns:
                         df["접점코드"] = df["접점코드"].apply(lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>')
 
-                # 합계 생성
                     sum_row = {}
                     for col in df.columns:
                         if col in numeric_cols:
@@ -1076,6 +1162,16 @@ async def daily_wire_page(
 
                     sum_df = pd.DataFrame([sum_row])
                     df = pd.concat([sum_df, df], ignore_index=True)
+
+                    # ✅ 정렬 적용
+                    if sort_column in df.columns:
+                        try:
+                            df = df.iloc[1:]  # 합계 제외
+                            df[sort_column] = pd.to_numeric(df[sort_column], errors='coerce')
+                            df = df.sort_values(by=sort_column, ascending=(sort_order != "desc"))
+                            df = pd.concat([sum_df, df], ignore_index=True)  # 다시 합계 붙이기
+                        except:
+                            pass
 
                     table_html = df.to_html(classes="table sticky-header", index=False, escape=False)
                     table_html = table_html.replace("<tr>", "<tr class=\"sum-row\">", 1)
@@ -1096,7 +1192,6 @@ async def daily_wire_page(
         "sheet_options": list(sheet_map.keys())
     })
 
-
 @app.get("/model-status", response_class=HTMLResponse)
 async def model_status_page(
     request: Request,
@@ -1105,6 +1200,7 @@ async def model_status_page(
     model_text: Optional[str] = Query(None),
     model_list: List[str] = Query(default_factory=list),
     exclude_branch: bool = Query(False),
+    exclude_center: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     data_entry = db.query(ExcelData).filter(
@@ -1116,7 +1212,6 @@ async def model_status_page(
 
     df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
 
-    # 접점코드 → 사번/이름 매핑
     if "접점코드" in df.columns:
         code_map = get_code_to_user_mapping(db)
         df["사번"] = df.get("사번", "")
@@ -1128,7 +1223,6 @@ async def model_status_page(
             if not df.at[idx, "이름"]:
                 df.at[idx, "이름"] = mapped.at[idx, "이름"]
 
-    # 모델 필터
     if model_text:
         df = df[df["모델"].astype(str).str.contains(model_text, case=False, na=False)]
 
@@ -1149,23 +1243,27 @@ async def model_status_page(
         if col not in df.columns:
             df[col] = 0
     df[sum_columns] = df[sum_columns].fillna(0)
-    
     for col in sum_columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        
+    df[sum_columns] = df[sum_columns].astype(int)
 
-    if exclude_branch:
-        # ✅ 접점제외 시 모델 중복 제거 + 실적 합산
+    group_cols = None
+    if exclude_center:
+        group_cols = ["지사", "모델"]
+    elif exclude_branch:
         group_cols = ["지사", "센터", "모델"]
+    if group_cols:
         df = df.groupby(group_cols, as_index=False)[sum_columns].sum(numeric_only=True)
 
-    # ✅ 정렬: 조건에 따라 분기 처리
-    df["센터"] = df["센터"].fillna("").astype(str)
-    if search_field == "지사":
-        df = df.sort_values(by=["센터", "합계"], ascending=[False, False], ignore_index=True)
-    else:
+    # ✅ 정렬 조건 처리
+    if exclude_center:
+        df = df.sort_values(by=["합계"], ascending=[False], ignore_index=True)
+    elif exclude_branch:
         df = df.sort_values(by=["합계", "센터"], ascending=[False, False], ignore_index=True)
+    else:
+        df = df.sort_values(by=["합계", "접점코드", "센터"], ascending=[False, False, False], ignore_index=True)
 
-    # ✅ 합계 행 삽입
     summary_row = {
         "지사": "합계",
         "센터": "",
@@ -1176,27 +1274,25 @@ async def model_status_page(
         "010": int(df["010"].sum()),
         "MNP": int(df["MNP"].sum()),
         "기변": int(df["기변"].sum()),
-    }   
+    }
     df = pd.concat([pd.DataFrame([summary_row]), df], ignore_index=True)
 
-    # ✅ 컬럼 제거
     cols_to_drop = ["사번", "이름"]
     if exclude_branch:
         cols_to_drop += ["접점코드", "접점명"]
+    if exclude_center:
+        cols_to_drop += ["센터"]
     df.drop(columns=[col for col in cols_to_drop if col in df.columns], inplace=True)
 
-    # ✅ 검색하기 버튼일 경우 → 컬럼 순서 지정
-    if not exclude_branch:
+    if not exclude_branch and not exclude_center:
         desired_order = ["지사", "센터", "접점코드", "접점명", "모델", "합계", "010", "MNP", "기변"]
         df = df[[col for col in desired_order if col in df.columns]]
 
-    # ✅ 테이블 생성
     if df.empty:
         table_html = "<p style='color:red; font-weight:bold;'>❌ 검색 결과가 없습니다. 검색어를 다시 확인해주세요.</p>"
     else:
         header_html = df.head(0).to_html(classes="table table-striped", index=False)
         body_html = df.to_html(index=False, header=False).split('<tbody>')[1].split('</tbody>')[0]
-
         table_html = f"""
             {header_html}
             <p id="loading-message" style="text-align:center;">⏳ 데이터 로딩 중...</p>
@@ -1221,7 +1317,8 @@ async def model_status_page(
         "model_text": model_text,
         "model_options": model_options,
         "selected_models": model_list,
-        "table_html": table_html
+        "table_html": table_html,
+        "exclude_center": exclude_center,
     })
 
 

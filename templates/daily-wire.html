@@ -20,7 +20,7 @@
     <div class="radio-grid">
         <fieldset>
             <legend>📡 유선 전체</legend>
-            <label><input type="radio" name="selected_sheet" value="신규+약갱" {% if selected_sheet == "신규+약갱" %}checked{% endif %}> 신규+약정</label>
+            <label><input type="radio" name="selected_sheet" value="신규+약갱" {% if selected_sheet == "신규+약갱" %}checked{% endif %}> 신규+약갱</label>
         </fieldset>
         <fieldset>
             <legend>📞 신규</legend>
@@ -39,6 +39,8 @@
             <label><input type="radio" name="selected_sheet" value="신규접수 T" {% if selected_sheet == "신규접수 T" %}checked{% endif %}> T</label>
         </fieldset>
     </div>
+    <input type="hidden" name="sort_column" value="합계">
+    <input type="hidden" name="sort_order" value="desc">
 </form>
 
 <hr>

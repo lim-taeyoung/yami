@@ -41,6 +41,12 @@
         button:hover {
             background-color: #0056b3;
         }
+        .signup-button {
+            background-color: #28a745;
+        }
+        .signup-button:hover {
+            background-color: #218838;
+        }
         p {
             color: gray;
             font-size: 0.9rem;
@@ -54,6 +60,9 @@
             <input type="text" name="username" placeholder="아이디" required>
             <input type="password" name="password" placeholder="비밀번호" required>
             <button type="submit">로그인</button>
+        </form>
+        <form method="get" action="/signup-request">
+            <button type="submit" class="signup-button">📝 신규가입 신청</button>
         </form>
         <p>등록된 계정으로 로그인하세요.</p>
     </div>

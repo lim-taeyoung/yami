@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>👤 관리자 페이지</title>
+    <title>🕤 관리자 페이지</title>
     <style>
         table { border-collapse: collapse; width: 80%; margin: auto; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
@@ -17,27 +17,17 @@
             transition: background-color 0.3s;
             padding: 10px 15px;
             font-size: 16px;
-        }
-
-        .btn-upload {
-            background-color: #4CAF50;
             width: 200px;
             height: 40px;
         }
+
+        .btn-upload { background-color: #45a049; }
         .btn-upload:hover { background-color: #45a049; }
 
-        .btn-upload-file {
-            background-color: #45a049;
-            width: 200px;
-            height: 40px;
-        }
+        .btn-upload-file { background-color: #45a049; }
         .btn-upload-file:hover { background-color: #3e8e41; }
 
-        .btn-title {
-            background-color: #3f51b5;
-            width: 200px;
-            height: 40px;
-        }
+        .btn-title { background-color: #3f51b5; }
         .btn-title:hover { background-color: #3949ab; }
 
         .btn-image {
@@ -47,74 +37,77 @@
         }
         .btn-image:hover { background-color: #5e35b1; }
 
-        .btn-image-upload {
-            background-color: #6a1b9a;
-            width: 200px;
-            height: 40px;
-        }
+        .btn-image-upload { background-color: #6a1b9a; }
         .btn-image-upload:hover { background-color: #5e35b1; }
 
         .btn-main {
             background-color: #607d8b;
-            width: 200px;
-            height: 40px;
         }
         .btn-main:hover { background-color: #455a64; }
+
+        .btn-signup-requests {
+            background-color: #a72828;
+        }
+        .btn-signup-requests:hover {
+            background-color: #218838;
+        }
+
+        .nav-btn {
+            text-align: right;
+            margin-top: 16px;
+        }
     </style>
 </head>
 <body>
+    <div class="nav-btn">
+        <a href='/main'><button class="btn btn-main">🏠 메인으로</button></a>
+    </div>
 
-<h1>👤 사용자 관리 리스트</h1>
+    <h1>🕤 사용자 관리 리스트</h1>
 
-<!-- ✅ 버튼 그루핑 -->
-<div class="button-group">
-    <!-- 사용자 엑셀 업로드 -->
-    <form method="post" enctype="multipart/form-data" action="/admin/upload-users" style="display: inline;">
-        <input type="file" name="file" accept=".xlsx" required style="display: none;" id="user-file">
-        <button type="button" class="btn btn-upload-file" onclick="document.getElementById('user-file').click()">📅 엑셀 파일 선택</button>
-        <button type="submit" class="btn btn-upload">업로드</button>
-    </form>
-    
-    <!-- 메인 이미지 업로드 -->
-    <form method="post" action="/upload-main-image" enctype="multipart/form-data" style="display: inline;">
-        <input type="file" name="main_image" accept="image/*" required style="display: none;" id="main-image-file">
-        <button type="button" class="btn btn-image-upload" onclick="document.getElementById('main-image-file').click()">📸 이미지 파일 선택</button>
-        <button type="submit" class="btn btn-image">업로드</button>
-    </form>
+    <div class="button-group">
+        <form method="post" enctype="multipart/form-data" action="/admin/upload-users" style="display: inline;">
+            <input type="file" name="file" accept=".xlsx" required style="display: none;" id="user-file">
+            <button type="button" class="btn btn-upload-file" onclick="document.getElementById('user-file').click()">📅 사용자리스트</button>
+            <button type="submit" class="btn btn-upload">업로드</button>
+        </form>
 
-    <!-- 실적 업로드 -->
-    <a href='/upload'><button class="btn btn-upload">📊 실적 데이터 업로드</button></a>
+        <form method="post" action="/upload-main-image" enctype="multipart/form-data" style="display: inline;">
+            <input type="file" name="main_image" accept="image/*" required style="display: none;" id="main-image-file">
+            <button type="button" class="btn btn-image-upload" onclick="document.getElementById('main-image-file').click()">📸 배경선택</button>
+            <button type="submit" class="btn btn-image">업로드</button>
+        </form>
 
-    <!-- ✅ 공지/이슈 수정 통합 버튼 -->
-    <a href="/admin/update-title"><button class="btn btn-title">📋 공지/이슈 수정하기</button></a>
+        <a href='/upload'><button class="btn btn-upload">📊 실적 업로드</button></a>
 
-    <!-- 메인으로 이동 -->
-    <a href='/main'><button class="btn btn-main">🏠 메인으로</button></a>
-</div>
+        <a href="/admin/update-title"><button class="btn btn-title">📋 공지/이슈 수정하기</button></a>
 
-<!-- 사용자 리스트 테이블 -->
-<table>
-    <tr>
-        <th>사번</th>
-        <th>이름</th>
-        <th>지사</th>
-        <th>센터</th>
-        <th>직책</th>
-        <th>권한</th>
-        <th>초기 로그인 유무</th>
-    </tr>
-    {% for u in users %}
-    <tr>
-        <td>{{ u.username }}</td>
-        <td>{{ u.name }}</td>
-        <td>{{ u.team1 }}</td>
-        <td>{{ u.team2 }}</td>
-        <td>{{ u.level }}</td>
-        <td>{{ u.role }}</td>
-        <td>{{ "O" if not u.first_login else "X" }}</td>
-    </tr>
-    {% endfor %}
-</table>
+        <a href="/admin/signup-requests">
+            <button class="btn btn-signup-requests">📋 신규가입 대기목록</button>
+        </a>
+    </div>
 
+    <table>
+        <tr>
+            <th>사번</th>
+            <th>이름</th>
+            <th>지사</th>
+            <th>센터</th>
+            <th>직책</th>
+            <th>권한</th>
+            <th>초기 로그인 유무</th>
+        </tr>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.username }}</td>
+            <td>{{ u.name }}</td>
+            <td>{{ u.team1 }}</td>
+            <td>{{ u.team2 }}</td>
+            <td>{{ u.level }}</td>
+            <td>{{ u.role }}</td>
+            <td>{{ "O" if not u.first_login else "X" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
 </body>
 </html>

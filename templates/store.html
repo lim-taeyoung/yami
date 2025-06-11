@@ -58,7 +58,7 @@
     margin-bottom: 12px;
   }
 
-    .search-row {
+  .search-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -68,7 +68,7 @@
     width: 100vw;
     box-sizing: border-box;
   }
-    .search-row form {
+  .search-row form {
     display: flex;
     flex-wrap: nowrap;
     gap: 8px;
@@ -154,6 +154,35 @@
     width: 100%;
     box-sizing: border-box;
   }
+  .btn-download {
+    background-color: #d9534f;
+    color: white;
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .btn-download:hover {
+    background-color: #c9302c;
+  }
+  .btn-upload {
+    background-color: #4CAF50;
+    color: white;
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .btn-upload:hover {
+    background-color: #45a049;
+  }
+  .top-buttons {
+    text-align: right;
+  }
 </style>
 
 <div class="top-buttons">
@@ -161,27 +190,26 @@
   <button class="delete-button" onclick="enableDeleteMode()">🗑️ 접점 삭제</button>
 </div>
 
-<h1>🏪 접점 관리</h1>
+<h1>🏷️ 접점코드 관리</h1>
 
-{% if request.session.get('user_role') == 'admin' %}
 <div class="upload-block">
   <div class="upload-row">
 
     <!-- 전사 -->
     <div class="upload-section">
-      <h3>📊 전사 접점관리</h3>
+      <h3>1️⃣ 전사 접점관리</h3>
       <form method="post" action="/init-store" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
         <input type="file" name="file" accept=".xlsx" required>
-        <button type="submit">업로드</button>
+        <button type="submit" class="btn-upload">업로드</button>
       </form>
       <form method="get" action="/store/export" style="margin-top: 8px;">
-        <button type="submit">다운로드</button>
+        <button type="submit" class="btn-download">다운로드</button>
       </form>
     </div>
 
     <!-- 지사 -->
     <div class="upload-section">
-      <h3>📍 지사별 접점관리</h3>
+      <h3>2️⃣ 지사별 접점관리</h3>
       <form method="post" action="/store/region-upload" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
         <select name="region" id="region-select" required>
           <option value=""> 지사 선택 </option>
@@ -190,25 +218,25 @@
           {% endfor %}
         </select>
         <input type="file" name="file" accept=".xlsx" required>
-        <button type="submit">업로드</button>
+        <button type="submit" class="btn-upload">업로드</button>
       </form>
       <form method="get" action="/store/region-export" onsubmit="return syncRegionSelect();" style="margin-top: 8px;">
         <input type="hidden" name="region" id="download-region-hidden">
-        <button type="submit">다운로드</button>
+        <button type="submit" class="btn-download">다운로드</button>
       </form>
     </div>
 
     <!-- 센터 -->
     <div class="upload-section">
-      <h3>🏢 센터별 접점관리</h3>
+      <h3>3️⃣ 센터별 접점관리</h3>
       <form method="post" action="/store/center-upload" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
         <input type="text" name="center_name" id="center-select" placeholder="센터명 입력" required>
         <input type="file" name="file" accept=".xlsx" required>
-        <button type="submit">업로드</button>
+        <button type="submit" class="btn-upload">업로드</button>
       </form>
       <form method="get" action="/store/center-export" onsubmit="return syncCenterSelect();" style="margin-top: 8px;">
         <input type="hidden" name="center_name" id="download-center-hidden">
-        <button type="submit">다운로드</button>
+        <button type="submit" class="btn-download">다운로드</button>
       </form>
     </div>
 
@@ -218,7 +246,9 @@
 <p style="font-size: 20px; color: #c00; font-weight: bold; margin: 16px 0;">
   ※ 업로드 파일의 시트명은 <span style="text-decoration: underline;">'강북 호남 서대전 동부산'</span>등 소속에 맞는 지사/센터명으로 되어있어야합니다!!
 </p>
-{% endif %}
+<p style="font-size: 20px; color: #c00; font-weight: bold; margin: 16px 0;">
+  ※ 업로드 또는 다운로드 시 드롭박스에서 지사를 선택하거나, 센터명을 입력한 후 버튼을 클릭해야 정상 작동합니다
+</p>
 
 <!-- 검색 + 신규 추가 버튼 한 줄에 -->
 <div class="search-row">
@@ -235,7 +265,6 @@
 
   <button class="action-button blue" onclick="addNewRow()" style="height: 48px; margin-left: 12px;">➕ 신규 접점 추가</button>
 </div>
-
 
 {% if not search_value %}
 <p style="font-size: 20px; margin-top: 20px;">🔍 검색어를 입력하면 결과가 표시됩니다.</p>
@@ -271,7 +300,27 @@
   </form>
 </div>
 
-</script>
+<!-- JavaScript -->
+<script>
+  function syncRegionSelect() {
+    const region = document.getElementById('region-select').value;
+    if (!region) {
+      alert('❗ 지사를 선택해주세요.');
+      return false;
+    }
+    document.getElementById('download-region-hidden').value = region;
+    return true;
+  }
 
+  function syncCenterSelect() {
+    const center = document.getElementById('center-select').value;
+    if (!center) {
+      alert('❗ 센터명을 입력해주세요.');
+      return false;
+    }
+    document.getElementById('download-center-hidden').value = center;
+    return true;
+  }
+</script>
 
 {% endblock %}
