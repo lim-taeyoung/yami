@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>🛠 인프라 현황 
+<h1>🌏 인프라 현황 
     <button type="button" style="float: right;" onclick="location.href='/main'">🏠 메인으로</button>
 </h1>
 
@@ -199,7 +199,27 @@ function handleCheckboxClick(clicked) {
     height: auto; /* 높이를 자동으로 (콘텐츠에 맞게) */
 }
 
+.search-row {
+    display: flex;
+    width: 100%;
+    gap: 0; /* 요소 사이 간격 제거 (필요 시 margin 사용) */
+    margin-top: 15px;
+}
 
+.search-dropdown,
+.search-input,
+.search-button {
+    flex: 1;
+    height: 40px;
+    font-size: 16px;
+    box-sizing: border-box; /* padding 포함한 width 계산 */
+    margin-right: 5px; /* 각 요소 간 약간의 간격 */
+}
+
+/* 마지막 요소는 오른쪽 여백 제거 */
+.search-button {
+    margin-right: 0;
+}
 
 </style>
 

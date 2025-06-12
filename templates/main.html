@@ -20,7 +20,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: rgba(255, 255, 255, 0.3);
-    padding: 7px 10px; /* 👈 위아래 너비 줄이기 */
+    padding: 7px 10px;
     border-radius: 0px;
     backdrop-filter: blur(4px);
     box-shadow: 0 0 20px rgba(0,0,0,0.2);
@@ -29,113 +29,139 @@
     max-width: 100%;
     box-sizing: border-box;
   }
+
+  /* ✅ 전체 컨텐츠 정렬을 위한 wrapper */
+  .page-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 12px;
+  }
 </style>
 
-<!-- 로그아웃 버튼 -->
-<div style="display: flex; justify-content: flex-end; margin-bottom: 10px;" class="container">
-    <a href="/"><button class="main-button" style="background-color: #f44336; color: white;">🚪 로그아웃</button></a>
-</div>
+<div class="page-container">
 
-<!-- ✅ 대문 이미지 + 타이틀 겹치기 -->
-{% if main_image_url %}
-<div class="title-overlay-wrapper">
-    <img src="{{ main_image_url }}" alt="메인 이미지" class="title-overlay-bg">
-    <div class="title-overlay-content">
-        <div style="font-size: 72px; font-weight: bold; color: #000; text-shadow: 8px 8px 8px #fff;">
-            도 매 인
-        </div>
-        <div style="font-size: 28px; color: #000; margin-top: 0px; line-height: 1; margin-bottom: 10px; text-shadow: 4px 4px 4px #fff;">
-            m&amp;s도매 영업지원 플랫폼
-        </div>
-    </div>
-</div>
-{% endif %}
+  <!-- 로그아웃 버튼 -->
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+      <a href="/"><button class="main-button" style="background-color: #f44336; color: white;">🚪 로그아웃</button></a>
+  </div>
 
-<!-- ✅ 공지/이슈 박스 영역 -->
-<div class="container" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 10px; margin-top: 1px; flex-wrap: wrap;">
-    <!-- 공지사항 박스 -->
-    <div style="flex: 1; min-width: 300px; background-color: #fefff4; padding: 10px; border: 2px solid #ffc400; border-radius: 16px;">
-        <div style="font-size: 25px; font-weight: bold; margin-bottom: 10px;">📢 공지사항</div>
-        <div style="font-size: 20px; white-space: pre-wrap;">{{ notice_text }}</div>
-    </div>
+  <!-- ✅ 대문 이미지 + 타이틀 겹치기 -->
+  {% if main_image_url %}
+  <div class="title-overlay-wrapper">
+      <img src="{{ main_image_url }}" alt="메인 이미지" class="title-overlay-bg">
+      <div class="title-overlay-content">
+          <div style="font-size: 72px; font-weight: bold; color: #000; text-shadow: 8px 8px 8px #fff;">
+              도 매 인
+          </div>
+          <div style="font-size: 28px; color: #000; margin-top: 0px; line-height: 1; margin-bottom: 10px; text-shadow: 4px 4px 4px #fff;">
+              m&amp;s도매 영업지원 플랫폼
+          </div>
+      </div>
+  </div>
+  {% endif %}
 
-    <!-- 이슈사항 박스 -->
-    <div style="flex: 1; min-width: 300px; background-color: #fefff4; padding: 10px; border: 2px solid #ffc400; border-radius: 16px;">
-        <div style="font-size: 25px; font-weight: bold; margin-bottom: 10px;">📝 중점관리사항</div>
-        <div style="font-size: 20px; white-space: pre-wrap;">{{ issue_text }}</div>
-    </div>
-</div>
+  <!-- ✅ 공지/이슈 박스 영역 (세로 정렬, 여백 포함) -->
+  <div style="
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-bottom: 30px;
+      margin-top: 1px;
+      margin-right: 30px;
+  ">
+      <!-- 공지사항 박스 -->
+      <div style="
+          width: 100%;
+          background-color: #ffffff;
+          padding: 10px;
+          border: 4px solid #000000;
+          border-radius: 16px;
+      ">
+          <div style="font-size: 30px; font-weight: bold; margin-bottom: 10px;">📢 공지사항</div>
+          <div style="font-size: 20px; white-space: pre-wrap;">{{ notice_text }}</div>
+      </div>
 
-<!-- ✅ 관리자 입력 폼 -->
-{% if is_admin %}
-<div class="container">
-<form method="post" action="/update-notices" style="margin-bottom: 40px; padding: 20px; border: 2px dashed #aaa; border-radius: 16px;">
-    <h3 style="font-size: 26px; margin-bottom: 16px;">🔧 공지사항 및 이슈사항 수정</h3>
+      <!-- 중점관리사항 박스 -->
+      <div style="
+          width: 100%;
+          background-color: #ffffff;
+          padding: 10px;
+          border: 4px solid #000000;
+          border-radius: 16px;
+      ">
+          <div style="font-size: 30px; font-weight: bold; margin-bottom: 10px;">📝 중점관리사항</div>
+          <div style="font-size: 20px; white-space: pre-wrap;">{{ issue_text }}</div>
+      </div>
+  </div>
 
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-        <label style="font-weight: bold;">📢 공지사항 (notice_text)</label>
-        <textarea name="notice_text" rows="3" style="padding: 10px; font-size: 18px;">{{ notice_text }}</textarea>
+  <!-- ✅ 관리자 입력 폼 -->
+  {% if is_admin %}
+  <form method="post" action="/update-notices" style="margin-bottom: 40px; padding: 20px; border: 2px dashed #aaa; border-radius: 16px;">
+      <h3 style="font-size: 26px; margin-bottom: 16px;">🔧 공지사항 및 이슈사항 수정</h3>
 
-        <label style="font-weight: bold;">📝 이달의 중점관리사항 (issue_text)</label>
-        <textarea name="issue_text" rows="3" style="padding: 10px; font-size: 18px;">{{ issue_text }}</textarea>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+          <label style="font-weight: bold;">📢 공지사항 (notice_text)</label>
+          <textarea name="notice_text" rows="3" style="padding: 10px; font-size: 18px;">{{ notice_text }}</textarea>
 
-        <button type="submit" style="
-            margin-top: 12px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            font-size: 18px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        ">
-            💾 저장
-        </button>
-    </div>
-</form>
-</div>
-{% endif %}
+          <label style="font-weight: bold;">📝 이달의 중점관리사항 (issue_text)</label>
+          <textarea name="issue_text" rows="3" style="padding: 10px; font-size: 18px;">{{ issue_text }}</textarea>
 
-<!-- ✅ 메인 메뉴 -->
-<div class="container">
-<div class="menu-grid" style="
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-top: 5px;
-">
-    {% set buttons = [
-        ('/dashboard', '📊 유무선 종합현황'),
-        ('/partner-store', '🏪 파트너매장'),
-        ('/report-search', '📌 접점별 현황'),
-        ('/infra', '🌏 인프라 현황'),
-        ('/model-status', '📱 모델별 현황'),
-        ('/store', '🏷️ 접점코드 관리'),
-        ('/daily-wireless', '🗓️ 일자별 무선'),
-        ('/board', '💬 도매 소통방'),
-        ('/daily-wire', '🗓️ 일자별 유선'),
-        ('/admin/users?username=admin', '⚙️ 관리자 메뉴')
-    ] %}
+          <button type="submit" style="
+              margin-top: 12px;
+              background-color: #4CAF50;
+              color: white;
+              padding: 10px 20px;
+              font-size: 18px;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+          ">
+              💾 저장
+          </button>
+      </div>
+  </form>
+  {% endif %}
 
-    {% for url, label in buttons %}
-    <a href="{{ url }}">
-        <button class="main-button" style="
-            width: 100%;
-            height: 90px;
-            font-size: 40px;
-            font-weight: 600;
-            background-color: rgb(222, 237, 251);
-            border: 4px solid rgb(204, 202, 251);
-            border-radius: 20px;
-            box-sizing: border-box;
-            color:rgb(0, 17, 86);
-            justify-content: center;
-        ">
-            {{ label }}
-        </button>
-    </a>
-    {% endfor %}
-</div>
-</div>
+  <!-- ✅ 메인 메뉴 -->
+  <div class="menu-grid" style="
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 5px;
+  ">
+      {% set buttons = [
+          ('/dashboard', '📊 유무선 종합현황'),
+          ('/partner-store', '🏪 파트너매장'),
+          ('/report-search', '📌 접점별 현황'),
+          ('/infra', '🌏 인프라 현황'),
+          ('/model-status', '📱 모델별 현황'),
+          ('/store', '🏷️ 접점코드 관리'),
+          ('/daily-wireless', '🗓️ 일자별 무선'),
+          ('/board', '💬 도매 소통방'),
+          ('/daily-wire', '🗓️ 일자별 유선'),
+          ('/admin/users?username=admin', '⚙️ 관리자 메뉴')
+      ] %}
+
+      {% for url, label in buttons %}
+      <a href="{{ url }}">
+          <button class="main-button" style="
+              width: 100%;
+              height: 90px;
+              font-size: 40px;
+              font-weight: 600;
+              background-color: rgba(232, 238, 249, 0.903);
+              border: 4px solid rgb(72, 67, 202);
+              border-radius: 20px;
+              box-sizing: border-box;
+              color:rgb(0, 17, 86);
+              justify-content: center;
+          ">
+              {{ label }}
+          </button>
+      </a>
+      {% endfor %}
+  </div>
+
+</div>  <!-- 🔚 page-container -->
 
 {% endblock %}
