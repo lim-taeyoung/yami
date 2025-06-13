@@ -1,3 +1,5 @@
+report seartch
+
 {% extends "base.html" %}
 {% block content %}
 
@@ -14,25 +16,26 @@
     }
 
     input {
-        padding: 40px 20px;  /* ✅ 세로(padding-top/bottom) = 40px, 좌우 = 20px */
+        padding: 40px 20px;
         font-size: 32px;
         width: 80%;
         max-width: 400px;
         box-sizing: border-box;
         border-radius: 8px;
         border: 3px solid #ccc;
+        margin-top: 20px;
     }
 
     .search-button {
         padding: 12px 40px;
         font-size: 32px;
-        background-color: var(--orange);  /* ✔️ 오렌지색 */
+        background-color: var(--orange);
         color: rgb(0, 0, 0);
         border: none;
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
-        margin-top: 16px;
+        margin-top: 24px;
     }
 
     .search-button:hover {
@@ -40,10 +43,10 @@
     }
 
     .back-button {
-        margin-top: 24px;
+        margin-top: 32px;
         font-size: 28px;
         padding: 14px 36px;
-        background-color: var(--orange);  /* ✔️ 오렌지색 */
+        background-color: var(--orange);
         color: rgb(0, 0, 0);
         border: none;
         border-radius: 8px;
@@ -60,12 +63,11 @@
     <h1>📍 접점별 현황</h1>
 
     <form method="get" action="/report">
-        <input type="text" name="code" placeholder="접점코드 입력" required>
+        <input type="text" name="code" placeholder="접점코드 필수" required><br>
+        <input type="text" name="center" placeholder="센터명 필수 (도매센터 생략)" required>
         <br>
         <button type="submit" class="search-button">검색</button>
     </form>
-
-    <br>
 
     <a href="/main"><button class="back-button">🏠 메인으로</button></a>
 </div>

@@ -1,3 +1,5 @@
+board
+
 {% extends "base.html" %}
 
 {% block content %}
@@ -140,7 +142,7 @@
 <form class="message-form" method="post" action="/board/message" enctype="multipart/form-data">
   <textarea name="message" placeholder="메시지를 입력하세요" required></textarea>
   <div class="bottom-inputs">
-    <input type="text" name="user" placeholder="이름" required>
+    <input type="text" name="user" value="{{ user.team2 }} {{ user.name }}" readonly>
     <input type="file" name="images" accept="image/*" multiple>
     <button type="submit">등록</button>
   </div>
@@ -179,7 +181,7 @@
 
   <form class="reply-form" method="post" action="/board/reply">
     <input type="hidden" name="message_id" value="{{ msg.id or '' }}">
-    <input type="text" name="user" placeholder="이름" required>
+    <input type="text" name="user" value="{{ user.team2 }} {{ user.name }}" readonly>
     <input type="text" name="reply" placeholder="댓글 입력..." required>
     <button type="submit">작성</button>
   </form>

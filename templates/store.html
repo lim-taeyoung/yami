@@ -1,3 +1,6 @@
+store
+
+
 {% extends "base.html" %}
 {% block content %}
 <style>
@@ -145,9 +148,9 @@
   .upload-section {
     flex: 1;
     min-width: 280px;
-    border: 1px solid #ccc;
+    border: 3px solid #ffb0b0;
     border-radius: 8px;
-    background: #f8f8f8;
+    background: #fff0f0;
     padding: 12px;
   }
   .upload-section form button {
@@ -182,6 +185,54 @@
   }
   .top-buttons {
     text-align: right;
+  }
+
+    .search-controls {
+    display: auto;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin: 20px auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .search-controls select,
+  .search-controls input,
+  .search-controls button,
+  .search-controls a {
+    flex: 1 1 0;
+    max-width: 180px;
+    height: 48px;
+    font-size: 18px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .search-controls a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #4CAF50;
+    color: white;
+    text-decoration: none;
+  }
+
+  .search-controls button {
+    background-color: #283ba7;
+    color: white;
+    border: none;
+  }
+
+  .search-controls .add-button {
+    max-width: 180px;
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    border: none;
   }
 </style>
 
@@ -251,20 +302,25 @@
 </p>
 
 <!-- 검색 + 신규 추가 버튼 한 줄에 -->
-<div class="search-row">
-  <form method="get" action="/store" style="display: flex; flex: 1; gap: 8px; align-items: center;">
-    <select name="search_column" style="flex: 0 0 auto; min-width: 120px; height: 48px; font-size: 20px;">
-      <option value="사번" {% if search_column == '사번' %}selected{% endif %}>사번</option>
-      <option value="지사" {% if search_column == '지사' %}selected{% endif %}>지사</option>
-      <option value="센터" {% if search_column == '센터' %}selected{% endif %}>센터</option>
-      <option value="접점코드" {% if search_column == '접점코드' %}selected{% endif %}>접점코드</option>
+<div class="search-controls">
+  <form method="get" action="/store" style="display: flex; gap: 10px; align-items: center;">
+    <select name="search_column">
+      <option value="사번">사번</option>
+      <option value="지사">지사</option>
+      <option value="센터">센터</option>
+      <option value="접점코드">접점코드</option>
     </select>
-    <input type="text" name="search_value" value="{{ search_value or '' }}" placeholder="검색어 입력" style="flex: 1; height: 48px; font-size: 20px;">
-    <button type="submit" class="main-button" style="height: 48px;">🔍 검색</button>
+    <input type="text" name="search_value" placeholder="검색어 입력">
+    <button type="submit">🔍 검색</button>
+     {% if search_value == "ALL" %}
+    ` <a href="/store" class="action-button blue">❌ 전체코드 닫기</a>
+     {% else %}
+      <a href="/store?search_value=ALL" class="action-button blue">📋 전체코드출력</a>
+     {% endif %}
+    <button type="button" onclick="syncStoreEntry()" class="blue-button" style="background-color: #c9302c;">➕ 신규접점추가</button>
   </form>
-
-  <button class="action-button blue" onclick="addNewRow()" style="height: 48px; margin-left: 12px;">➕ 신규 접점 추가</button>
 </div>
+
 
 {% if not search_value %}
 <p style="font-size: 20px; margin-top: 20px;">🔍 검색어를 입력하면 결과가 표시됩니다.</p>
@@ -321,6 +377,39 @@
     document.getElementById('download-center-hidden').value = center;
     return true;
   }
+function syncStoreEntry() {
+  const code = document.querySelector("table td")?.innerText?.trim();
+  const storeName = document.querySelector("table td:nth-child(4)")?.innerText?.trim();
+  const name = document.querySelector("#input-name")?.value.trim();
+  const sabun = document.querySelector("#input-sabun")?.value.trim();
+  const team1 = document.querySelector("#input-team1")?.value.trim();
+  const team2 = document.querySelector("#input-team2")?.value.trim();
+  const address = document.querySelector("#input-address")?.value.trim();
+
+  if (!code || !name || !sabun || !team1 || !team2 || !address) {
+    return alert("❌ 모든 필드를 입력해주세요.");
+  }
+
+  fetch("/store/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      접점코드: code,
+      접점명: storeName,
+      이름: name,
+      사번: sabun,
+      지사: team1,
+      센터: team2,
+      주소: address
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message || "✅ 저장 성공");
+    location.reload();
+  })
+  .catch(() => alert("❌ 저장 실패"));
+}
 </script>
 
 {% endblock %}

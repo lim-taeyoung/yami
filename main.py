@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import List, Optional
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_datetime64_any_dtype
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Form, Request, APIRouter
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text, DateTime
@@ -23,8 +23,12 @@ from starlette.templating import Jinja2Templates
 from settings import DATABASE_URL
 from urllib.parse import quote
 from datetime import datetime
+from schemas import StoreEntry  # pydantic schema
+
+
 
 app = FastAPI()
+router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 app.add_middleware(SessionMiddleware, secret_key="supersecret123!@#")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -215,17 +219,101 @@ async def login(
     if not user:
         return HTMLResponse(content="<p>⚠ 로그인 실패: 아이디 또는 비밀번호가 틀립니다.</p>", status_code=400)
 
-    # ✅ 세션에 관리자 여부 저장
+    if user.first_login:
+        request.session["temp_user"] = user.username
+        return RedirectResponse(url="/change-password", status_code=303)
+
     request.session["username"] = user.username
     request.session["user_role"] = "admin" if user.role == "관리자" else "user"
-    request.session["name"] = user.name  # ✅ 이름도 저장!
+    request.session["name"] = user.name
 
     return RedirectResponse(url=f"/main?username={user.username}", status_code=303)
+
+
+
+@app.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request):
+    username = request.session.get("temp_user")
+    if not username:
+        return RedirectResponse("/login")
+
+    return templates.TemplateResponse("change-password.html", {"request": request, "username": username})
+
+@app.post("/change-password")
+async def update_password(
+    request: Request,
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    username = request.session.get("temp_user")
+    if not username:
+        return RedirectResponse("/login")
+
+    # ✅ 길이 확인
+    if not (6 <= len(new_password) <= 12):
+        return HTMLResponse("<p>❌ 비밀번호는 6~12자리여야 합니다.</p>", status_code=400)
+
+    # ✅ 비밀번호 확인 일치 여부 확인
+    if new_password != confirm_password:
+        return HTMLResponse("<p>❌ 비밀번호가 일치하지 않습니다. 다시 확인해주세요.</p>", status_code=400)
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        return HTMLResponse("<p>❌ 사용자 정보를 찾을 수 없습니다.</p>", status_code=400)
+
+    user.password = new_password
+    user.first_login = False
+    db.commit()
+
+    request.session.pop("temp_user", None)
+    # ✅ 자바스크립트 팝업 후 리디렉션
+    return HTMLResponse(
+        content="""
+        <script>
+            alert("✅ 비밀번호 변경이 완료되었습니다.");
+            window.location.href = "/";
+        </script>
+        """,
+        status_code=200
+    )
+
 
 @app.get("/login-admin")
 async def login_as_admin(request: Request):
     request.session["user_role"] = "admin"
     return RedirectResponse("/store", status_code=302)
+
+
+@app.get("/admin/reset-password", response_class=HTMLResponse)
+async def reset_password_form(request: Request):
+    if request.session.get("user_role") != "admin":
+        return HTMLResponse("<h3>⚠ 관리자만 접근 가능합니다.</h3>", status_code=403)
+    return templates.TemplateResponse("reset-password.html", {"request": request})
+
+@app.post("/admin/reset-password")
+async def admin_reset_password(
+    request: Request,
+    target_username: str = Form(...),
+    new_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if request.session.get("user_role") != "admin":
+        return HTMLResponse("<h3>⚠ 관리자만 사용할 수 있습니다.</h3>", status_code=403)
+
+    user = db.query(User).filter(User.username == target_username).first()
+    if not user:
+        return HTMLResponse("<script>alert('❌ 사용자를 찾을 수 없습니다.'); history.back();</script>")
+
+    if not (6 <= len(new_password) <= 12):
+        return HTMLResponse("<script>alert('❌ 비밀번호는 6~12자리여야 합니다.'); history.back();</script>")
+
+    user.password = new_password
+    user.first_login = False  # ✅ 강제 변경이므로 최초로그인 상태도 해제
+    db.commit()
+
+    return HTMLResponse("<script>alert('✅ 비밀번호가 성공적으로 변경되었습니다.'); location.href='/admin/users';</script>")
+
 
 
 # ✅ 사용자 리스트 보기 및 엑셀 업로드 버튼 추가
@@ -358,7 +446,7 @@ async def approve_multiple_signups(
                 team1=req.team1,
                 team2=req.team2,
                 level=req.level,
-                role="사용자자"
+                role="사용자"
             ))
             db.delete(req)
     db.commit()
@@ -366,9 +454,22 @@ async def approve_multiple_signups(
 
 
 
+@app.post("/admin/reject-multiple-signups")
+async def reject_multiple_signups(
+    request: Request,
+    usernames: List[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not usernames:
+        return HTMLResponse("<script>alert('❌ 반려할 사용자를 선택해주세요.'); history.back();</script>")
 
+    for username in usernames:
+        req = db.query(SignupRequest).filter(SignupRequest.username == username).first()
+        if req:
+            db.delete(req)
 
-
+    db.commit()
+    return HTMLResponse("<script>alert('❌ 선택된 신청건이 반려되었습니다.'); location.href='/admin/signup-requests';</script>")
 
 
 @app.get("/main", response_class=HTMLResponse)
@@ -543,7 +644,7 @@ async def dashboard(
         table_html = ""
     else:
         try:
-            df_filtered = df[df[search_column].astype(str).str.contains(search_value, case=False, na=False)]
+            df_filtered = df[df[search_column].astype(str).str.strip() == search_value]
         except Exception as e:
             return HTMLResponse(content=f"<p style='color:red;'>🔥 필터링 중 오류 발생: {e}</p>")
 
@@ -569,7 +670,7 @@ async def dashboard(
         df_base = pd.read_json(BytesIO(latest_data.data.encode("utf-8")))
         df_base.columns = df_base.columns.str.strip()
         df_base = apply_user_mapping(df_base, db)
-        df_calc = df_base[df_base[search_column].astype(str).str.contains(search_value, case=False, na=False)].copy()
+        df_calc = df_base[df_base[search_column].astype(str).str.strip() == search_value].copy()
         df_calc["신동"] = pd.to_numeric(df_calc.get("신동", pd.Series([0]*len(df_calc))), errors='coerce').fillna(0)
         df_calc["신동모수"] = pd.to_numeric(df_calc.get("신동모수", pd.Series([0]*len(df_calc))), errors='coerce').fillna(0)
 
@@ -595,18 +696,33 @@ async def dashboard(
 
         df_result = pd.concat([pd.DataFrame([summary]), df_filtered], ignore_index=True)
 
-        if "접점코드" in df_result.columns:
-            df_result["접점코드"] = df_result["접점코드"].apply(
-                lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>' if pd.notnull(x) else ""
+        if "접점코드" in df_result.columns and "센터" in df_result.columns:
+            df_result["접점코드"] = df_result.apply(
+                lambda row: f'<a href="/report?code={row["접점코드"]}&center={row["센터"]}" target="_blank">{row["접점코드"]}</a>',
+                axis=1
             )
 
-        df_visible = df_result[[col for col in df_result.columns if col not in ["사번", "이름"]]]
-        table_html = df_visible.to_html(classes="table table-striped", index=False, escape=False)
+        # 기본 생성
+        table_html = df_result.to_html(classes="table table-striped", index=False, escape=False)
 
-        table_html = table_html.replace('<th>지사</th>', '<th class="sticky-col col-1">지사</th>')
-        table_html = table_html.replace('<th>센터</th>', '<th class="sticky-col col-2">센터</th>')
-        table_html = table_html.replace('<th>접점코드</th>', '<th class="sticky-col col-3">접점코드</th>')
-        table_html = table_html.replace('<th>접점명</th>', '<th class="sticky-col col-4">접점명</th>')
+        # <th>에 class 추가
+        table_html = table_html.replace('<th>사번</th>', '<th class="sabun-col hidden-col">사번</th>')
+        table_html = table_html.replace('<th>이름</th>', '<th class="name-col hidden-col">이름</th>')
+
+        # <td>에 class 추가 (텍스트 기준 치환)
+        if "사번" in df_result.columns:
+            for val in df_result["사번"].astype(str).unique():
+                if val.strip() == "":
+                    continue
+                table_html = table_html.replace(f"<td>{val}</td>", f'<td class="sabun-col hidden-col">{val}</td>')
+
+        if "이름" in df_result.columns:
+            for val in df_result["이름"].astype(str).unique():
+                if val.strip() == "":
+                    continue
+                table_html = table_html.replace(f"<td>{val}</td>", f'<td class="name-col hidden-col">{val}</td>')
+
+
 
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -619,6 +735,7 @@ async def dashboard(
         "sort_order": sort_order,
         "mode": mode
     })
+
 
 
 # ✅ 한마디 게시판 메인 페이지
@@ -647,14 +764,18 @@ async def board_page(
         msg.image_list = json.loads(msg.image_filenames) if msg.image_filenames else []
         msg.replies = db.query(BoardReply).filter_by(message_id=msg.id).all()
 
+    # ✅ 로그인 사용자 정보 가져오기
+    username = request.session.get("username")
+    user = db.query(User).filter(User.username == username).first() if username else None
+
     return templates.TemplateResponse("board.html", {
         "request": request,
         "messages": messages,
         "page": page,
         "total_pages": total_pages,
-        "total_count": total_count
+        "total_count": total_count,
+        "user": user  # ✅ user 객체 템플릿에 넘김
     })
-
 
 # ✅ 게시글 등록 (최대 이미지 5장)
 @app.post("/board/message")
@@ -664,6 +785,7 @@ async def post_message(
     message: str = Form(...),
     images: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db)
+    
 ):
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     saved_filenames = []
@@ -790,9 +912,16 @@ COLUMN_MAPPING = {
 from fastapi import Query
 from starlette.responses import HTMLResponse
 
+from fastapi import Query
+
 @app.get("/report", response_class=HTMLResponse)
-async def render_report(request: Request, code: str = Query(...), db: Session = Depends(get_db)):
-    # ✅ 종합현황 데이터
+async def render_report(
+    request: Request,
+    code: str = Query(...),
+    center: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    # ✅ 종합현황 데이터 불러오기
     data_entry = db.query(ExcelData).filter(
         ExcelData.sheet_name == "종합현황"
     ).order_by(ExcelData.id.desc()).first()
@@ -802,20 +931,23 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
 
     df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
     df["접점코드"] = df["접점코드"].astype(str).str.strip().str.upper()
+    df["센터"] = df["센터"].astype(str).str.strip()
 
-    if code not in df["접점코드"].values:
-        return HTMLResponse("<h3>❌ 해당 접점코드가 존재하지 않습니다.</h3>")
+    # ✅ 접점코드 + 센터명 기준으로 정확히 찾기
+    filtered_df = df[(df["접점코드"] == code.strip().upper()) & (df["센터"] == center.strip())]
+    if filtered_df.empty:
+        return HTMLResponse("<h3>❌ 해당 접점코드와 센터명을 가진 데이터가 없습니다.</h3>", status_code=404)
 
-    row = df[df["접점코드"] == code].iloc[0]
+    row = filtered_df.iloc[0]
 
     def get(col):
         return row[col] if col in row else "-"
 
-    # ✅ 사번/이름 매핑 적용 (StoreData 기준)
+    # ✅ 사번/이름 매핑 (Store 테이블 기준)
     code_map = get_code_to_user_mapping(db)
-    user_info = code_map.get(code.upper(), {"사번": "-", "이름": "-"})
+    user_info = code_map.get(code.strip().upper(), {"사번": "-", "이름": "-"})
 
-    # ✅ 접점별 판매모델
+    # ✅ 접점별 판매모델 불러오기
     model_entry = db.query(ExcelData).filter(
         ExcelData.sheet_name == "접점별 판매모델"
     ).order_by(ExcelData.id.desc()).first()
@@ -823,7 +955,8 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
     model_data = []
     if model_entry:
         model_df = pd.read_json(BytesIO(model_entry.data.encode("utf-8")))
-        model_df = model_df[model_df["접점코드"].astype(str).str.upper() == code.upper()]
+        model_df["접점코드"] = model_df["접점코드"].astype(str).str.strip().str.upper()
+        model_df = model_df[model_df["접점코드"] == code.strip().upper()]
         if not model_df.empty:
             model_df = model_df[["모델", "합계", "010", "MNP", "기변"]].fillna(0)
             model_df = model_df.groupby("모델", as_index=False).sum(numeric_only=True)
@@ -833,10 +966,9 @@ async def render_report(request: Request, code: str = Query(...), db: Session = 
     return templates.TemplateResponse("report.html", {
         "request": request,
         "get": get,
-        "model_data": model_data,
-        "user_info": user_info  # 👉 사번/이름 추가로 넘김
+        "model_data": model_data,   
+        "user_info": user_info
     })
-
 
 # ✅ 접점코드 입력 페이지 추가
 @app.get("/report-search", response_class=HTMLResponse)
@@ -883,7 +1015,7 @@ async def partner_store_page(
     show_data = bool(filter_value)
 
     if show_data and filter_column and filter_value and filter_column in df.columns:
-        df = df[df[filter_column].astype(str).str.contains(filter_value)]
+        df = df[df[filter_column].astype(str).str.strip() == filter_value]
 
     def convert_percent(x):
         if pd.isnull(x):
@@ -1043,7 +1175,7 @@ def daily_wireless_page(
         if search_field not in df.columns:
             return HTMLResponse(f"<h3>⚠ '{search_field}' 컬럼이 존재하지 않습니다.</h3>")
 
-        df = df[df[search_field].astype(str).str.contains(search_value, case=False, regex=False)]
+        df = df[df[search_field].astype(str).str.strip() == search_value]
 
         if "접점코드" in df.columns:
             df["접점코드"] = df["접점코드"].apply(lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>')
@@ -1140,7 +1272,7 @@ async def daily_wire_page(
 
                 if search_value:
                     if search_column in df.columns:
-                        df = df[df[search_column].astype(str).str.contains(search_value, na=False)]
+                        df = df[df[search_column].astype(str).str.strip() == search_value]
 
                 if not df.empty:
                     numeric_cols = df.columns.difference(fixed_order)
@@ -1232,7 +1364,7 @@ async def model_status_page(
     if search_field and search_value:
         if search_field in df.columns:
             try:
-                df = df[df[search_field].astype(str).str.contains(search_value, case=False, regex=False)]
+                df = df[df[search_field].astype(str).str.strip() == search_value]
             except Exception:
                 df = df.iloc[0:0]
         else:
@@ -1356,8 +1488,14 @@ async def store_page(
         if "이름" not in df.columns:
             df["이름"] = ""
 
-        if search_value and search_column in df.columns:
-            df = df[df[search_column].astype(str).str.contains(search_value, case=False, regex=False)]
+
+        if search_value:
+            search_value = search_value.strip()
+
+        if search_value == "ALL":
+            pass  # 전체 출력
+        elif search_value and search_column in df.columns:
+            df = df[df[search_column].astype(str).str.strip() == search_value]
         else:
             df = df.iloc[0:0]
 
@@ -1375,27 +1513,97 @@ async def store_page(
     })
 
 
+router = APIRouter()
+
+@router.post("/store/sync")
+async def sync_store_data(entry: StoreEntry, db: Session = Depends(get_db)):
+    code = entry.접점코드.strip()
+    center = entry.센터.strip()
+
+    # 1️⃣ Store 테이블 처리
+    store = db.query(Store).filter(Store.접점코드 == code, Store.센터 == center).first()
+    if store:
+        # update
+        store.접점명 = entry.접점명.strip()
+        store.이름 = entry.이름.strip()
+        store.사번 = entry.사번.strip()
+        store.지사 = entry.지사.strip()
+        store.주소 = entry.주소.strip()
+    else:
+        store = Store(
+            접점코드=code,
+            접점명=entry.접점명.strip(),
+            이름=entry.이름.strip(),
+            사번=entry.사번.strip(),
+            지사=entry.지사.strip(),
+            센터=center,
+            주소=entry.주소.strip(),
+        )
+        db.add(store)
+
+    # 2️⃣ StoreData 테이블의 JSON 처리
+    entry_data = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry_data:
+        return JSONResponse(content={"error": "StoreData 비어있음"}, status_code=400)
+
+    df = pd.read_json(BytesIO(entry_data.data.encode("utf-8")))
+    df.columns = df.columns.str.strip()
+
+    # 동일한 접점코드 + 센터가 있으면 update, 아니면 append
+    match = (df["접점코드"].astype(str).str.strip() == code) & (df["센터"].astype(str).str.strip() == center)
+    if match.any():
+        df.loc[match, ["접점명", "이름", "사번", "지사", "주소"]] = [
+            entry.접점명.strip(),
+            entry.이름.strip(),
+            entry.사번.strip(),
+            entry.지사.strip(),
+            entry.주소.strip(),
+        ]
+    else:
+        new_row = {
+            "접점코드": code,
+            "접점명": entry.접점명.strip(),
+            "이름": entry.이름.strip(),
+            "사번": entry.사번.strip(),
+            "지사": entry.지사.strip(),
+            "센터": center,
+            "주소": entry.주소.strip(),
+        }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+    entry_data.data = df.to_json(force_ascii=False, orient="records")
+    db.commit()
+
+    return JSONResponse(content={"message": "✅ 접점 정보가 저장되었습니다."}, status_code=200)
+
+
+app.include_router(router)
+
+
+
 @app.get("/store/export")
 async def export_store_data(db: Session = Depends(get_db)):
     entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
     if not entry:
         return HTMLResponse("❌ 저장된 접점관리 데이터가 없습니다.")
 
-    # JSON 데이터를 DataFrame으로 로드
     df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
 
-    # 엑셀로 변환
+    now = datetime.now()
+    filename_raw = f"전사접점코드_{now.strftime('%y%m%d_%H%M')}.xlsx"
+    filename_encoded = quote(filename_raw)  # 한글 포함 시 URL 인코딩
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df.to_excel(writer, index=False, sheet_name="접점관리")
     output.seek(0)
 
-    # 다운로드 응답 반환
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": "attachment; filename=MAPPING.xlsx"
+            # RFC 6266 표준 준수 (filename*=... 형식)
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
         }
     )
 
@@ -1432,6 +1640,40 @@ async def update_store_data(request: Request, db: Session = Depends(get_db)):
 
     return HTMLResponse("<script>alert('✅ 수정사항이 저장되었습니다.'); location.href='/store';</script>")
 
+
+@app.post("/store/from-report")
+async def create_store_from_report(request: Request, db: Session = Depends(get_db)):
+    form_data = await request.form()
+
+    new_row = {
+        "접점코드": form_data.get("접점코드", "").strip(),
+        "접점명": form_data.get("접점명", "").strip(),
+        "지사": form_data.get("지사", "").strip(),
+        "센터": form_data.get("센터", "").strip(),
+        "사번": form_data.get("사번", "").strip(),
+        "이름": form_data.get("이름", "").strip(),
+        "주소": form_data.get("주소", "").strip(),
+    }
+
+    # 기존 StoreData에서 최신 데이터 불러오기
+    entry = db.query(StoreData).order_by(StoreData.id.desc()).first()
+    if not entry:
+        return HTMLResponse("<script>alert('❌ 저장 실패: StoreData가 없습니다. 먼저 초기 업로드를 해주세요.'); history.back();</script>")
+
+    df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
+    df.columns = df.columns.str.strip()
+
+    # 같은 접점코드 존재 시 업데이트
+    code = new_row["접점코드"]
+    if code in df["접점코드"].values:
+        df.loc[df["접점코드"] == code] = [new_row.get(col, "") for col in df.columns]
+    else:
+        df.loc[len(df)] = [new_row.get(col, "") for col in df.columns]
+
+    entry.data = df.to_json(force_ascii=False, orient="records")
+    db.commit()
+
+    return HTMLResponse("<script>alert('✅ 접점 정보가 저장되었습니다.'); location.href='/report?code=" + code + "&center=" + new_row["센터"] + "';</script>")
 
 
 
@@ -1561,22 +1803,23 @@ async def export_region_store(region: str, db: Session = Depends(get_db)):
     if df_region.empty:
         return HTMLResponse(f"<script>alert('❌ \"{region}\" 지사 데이터가 없습니다.'); history.back();</script>")
 
+    # 파일명 생성: 지사_250613_0914.xlsx
+    now = datetime.now()
+    filename_raw = f"{region}_{now.strftime('%y%m%d_%H%M')}.xlsx"
+    filename_encoded = quote(filename_raw)
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_region.to_excel(writer, index=False, sheet_name=region)
     output.seek(0)
 
-    filename = f"{region}_접점관리.xlsx"
-    quoted = quote(filename)
-
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{quoted}"
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
         }
     )
-
 
 @app.post("/store/center-upload")
 async def upload_center_store(center_name: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -1639,22 +1882,25 @@ async def export_center_store(center_name: str, db: Session = Depends(get_db)):
     df = pd.read_json(BytesIO(entry.data.encode("utf-8")))
     df["센터"] = df["센터"].fillna("").astype(str).str.strip()
     df_center = df[df["센터"] == center_name]
+
     if df_center.empty:
         return HTMLResponse(f"<script>alert('❌ \"{center_name}\" 센터 데이터가 없습니다.'); history.back();</script>")
+
+    # 파일명 생성
+    now = datetime.now()
+    filename_raw = f"{center_name}_{now.strftime('%y%m%d_%H%M')}.xlsx"
+    filename_encoded = quote(filename_raw)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_center.to_excel(writer, index=False, sheet_name=center_name)
     output.seek(0)
 
-    filename = f"{center_name}_접점관리.xlsx"
-    quoted = quote(filename)
-
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{quoted}"
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
         }
     )
 
@@ -1719,8 +1965,8 @@ async def infra_page(
         if filter_column and filter_value:
             if filter_column in filtered_df.columns:
                 filtered_df = filtered_df[
-                    filtered_df[filter_column].astype(str).str.contains(filter_value, case=False, na=False)
-                ]
+                    filtered_df[filter_column].astype(str).str.strip() == filter_value]
+                
                 print(f"✅ '{filter_column}' 필터 적용: {filter_value}")
 
         # ✅ 정렬: 전월무선 또는 전월유선 기준 내림차순 (존재할 경우)
@@ -1808,3 +2054,4 @@ async def update_title(
     print(f"✅ 업데이트된 정보: {setting.notice}, {setting.issue}")
 
     return HTMLResponse("<script>alert('✅ 공지사항/이슈사항이 업데이트되었습니다!'); location.href='/main';</script>")
+

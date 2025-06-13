@@ -1,3 +1,5 @@
+dashboard
+
 {% extends "base.html" %}
 {% block content %}
 {% set type = type or "종합" %}
@@ -96,6 +98,7 @@ fieldset legend {
 .table-wrapper {
     overflow-x: auto;
     width: 100%;
+    margin-left: 0;  /* 추가 */
 }
 
 .table {
@@ -107,7 +110,7 @@ fieldset legend {
 .table th, .table td {
     font-size: 20px;
     font-weight: 600;
-    padding: 0 4px;
+    padding: 4px 8px;
     vertical-align: middle;
     white-space: nowrap;
     color: #111;
@@ -126,59 +129,15 @@ fieldset legend {
     background-color: #e0f7ff !important;
 }
 
-.table td:nth-child(1), .table th:nth-child(1) {
-    position: sticky;
-    left: 0;
-    background-color: var(--orange);
-    z-index: 5;
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
-    text-align: center;
-}
-
-.table td:nth-child(2), .table th:nth-child(2) {
-    position: sticky;
-    left: 50px;
-    background-color: var(--orange) ;
-    z-index: 5;
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
-    text-align: center;
-}
-
-.table td:nth-child(3), .table th:nth-child(3) {
-    position: sticky;
-    left: 110px;
-    background-color: var(--orange);
-    z-index: 5;
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
-    text-align: center;
-}
-
-.table td:nth-child(4), .table th:nth-child(4) {
-    position: sticky;
-    left: 250px;
-    background-color: var(--orange) ;
-    z-index: 5;
-    min-width: auto;
-    max-width: none;
-    width: auto;
-    text-align: center;
-}
-
-.table td:nth-child(1),
-.table td:nth-child(2),
-.table td:nth-child(3),
-.table td:nth-child(4) {
-    background-color: white !important;
-}
-
 .hidden-col {
-    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.sabun-col, .name-col {
+    min-width: 80px;
+    max-width: 80px;
+    width: 80px;
 }
 
 .sort-bar {
@@ -195,14 +154,19 @@ fieldset legend {
     width: 50%;
     justify-content: space-between;
 }
-.sort-inline label{
+.sort-inline label {
     flex: 0;
     white-space: nowrap;
     font-size: 22px;
     box-sizing: border-box;
     padding: 6px 8px;
 }
-.sort-inline select,
+.sort-inline select {
+    flex: 1;
+    font-size: 20px;
+    min-width: 120px;
+    padding: 10px 12px;
+}
 .sort-inline button {
     flex: 1;
     text-align: center;
@@ -217,6 +181,19 @@ fieldset legend {
     justify-content: center;
     gap: 4px;
     font-weight: 600;
+}
+.toggle-columns-btn {
+    background-color: #e53935;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.toggle-columns-btn:hover {
+    background-color: #c62828;
 }
 </style>
 
@@ -287,6 +264,7 @@ fieldset legend {
 
             <button type="submit" name="sort_order" value="asc">🔼<span>오름차순</span></button>
             <button type="submit" name="sort_order" value="desc">🔽<span>내림차순</span></button>
+            <button type="button" id="toggleBtn" class="toggle-columns-btn" onclick="toggleHiddenColumns()">👁️ 사번/이름 숨기기</button>
         </form>
     </div>
     {% endif %}
@@ -300,6 +278,59 @@ fieldset legend {
 function uncheckAll() {
     document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
 }
+
+function toggleHiddenColumns() {
+    const sabuns = document.querySelectorAll('.sabun-col');
+    const names = document.querySelectorAll('.name-col');
+    const isHidden = sabuns.length > 0 && getComputedStyle(sabuns[0]).visibility === 'hidden';
+
+    sabuns.forEach(el => el.classList.toggle('hidden-col'));
+    names.forEach(el => el.classList.toggle('hidden-col'));
+
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = isHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
+
+    updateStickyLefts();
+    adjustTableMargin();
+}
+
+function updateStickyLefts() {
+    const rows = document.querySelectorAll('.table tr');
+    if (!rows.length) return;
+
+    const headerRow = rows[0];
+    const headers = headerRow.querySelectorAll('th');
+
+    let left = 0;
+    headers.forEach((th, i) => {
+        if (th.style.position === 'sticky' || getComputedStyle(th).position === 'sticky') {
+            th.style.left = left + 'px';
+            rows.forEach(row => {
+                const cell = row.children[i];
+                if (cell) {
+                    cell.style.left = left + 'px';
+                }
+            });
+            left += th.offsetWidth;
+        }
+    });
+}
+
+function adjustTableMargin() {
+    const firstVisibleCol = document.querySelector('.table th:not(.hidden-col)');
+    const wrapper = document.querySelector('.table-wrapper');
+    if (firstVisibleCol && wrapper) {
+        const offset = firstVisibleCol.offsetLeft;
+        wrapper.scrollLeft = offset;
+    }
+}
+
+// ✅ 추가: 페이지 로드시 사번/이름 컬럼은 항상 표시되도록 설정
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.sabun-col, .name-col').forEach(el => {
+        el.classList.remove('hidden-col');
+    });
+});
 </script>
 
 {% endblock %}
