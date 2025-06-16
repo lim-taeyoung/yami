@@ -289,7 +289,7 @@ async def login_as_admin(request: Request):
 async def reset_password_form(request: Request):
     if request.session.get("user_role") != "admin":
         return HTMLResponse("<h3>⚠ 관리자만 접근 가능합니다.</h3>", status_code=403)
-    return templates.TemplateResponse("reset-password.html", {"request": request})
+    return templates.TemplateResponse("admin/reset-password.html", {"request": request})
 
 @app.post("/admin/reset-password")
 async def admin_reset_password(
@@ -992,47 +992,30 @@ async def partner_store_page(
         return HTMLResponse("<h3>❌ 파트너매장 시트 데이터가 없습니다.</h3>")
 
     df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
-    all_columns = df.columns.tolist()
 
-    # ✅ 접점코드 기준으로 사번/이름 자동 매핑
     if "접점코드" in df.columns:
         code_map = get_code_to_user_mapping(db)
-
-        if "사번" not in df.columns:
-            df["사번"] = ""
-        if "이름" not in df.columns:
-            df["이름"] = ""
-
+        df["사번"] = df.get("사번", "")
+        df["이름"] = df.get("이름", "")
         mapped = df["접점코드"].map(code_map).dropna()
         mapped_df = mapped.apply(pd.Series)
-
         for idx in mapped_df.index:
             if pd.isna(df.at[idx, "사번"]) or df.at[idx, "사번"] == "":
                 df.at[idx, "사번"] = mapped_df.at[idx, "사번"]
             if pd.isna(df.at[idx, "이름"]) or df.at[idx, "이름"] == "":
                 df.at[idx, "이름"] = mapped_df.at[idx, "이름"]
 
-    show_data = bool(filter_value)
-
-    if show_data and filter_column and filter_value and filter_column in df.columns:
-        df = df[df[filter_column].astype(str).str.strip() == filter_value]
-
     def convert_percent(x):
         if pd.isnull(x):
             return "--"
         try:
-            x_str = str(x).strip()
-            if "%" in x_str:
-                # 퍼센트 기호가 있는 경우, 그대로 숫자만 추출해 사용
-                val = float(x_str.replace('%', ''))
-            else:
-                # 비율(0.85 등)로 들어온 경우 → 퍼센트로 환산
-                val = float(x_str) * 100
-            return f"{round(val, 1)}%"
+            x = str(x).strip()
+            return f"{round(float(x.replace('%','')) if '%' in x else float(x)*100, 1)}%"
         except:
             return str(x)
 
     fixed_columns = ["사번", "이름", "지사", "센터", "접점코드", "접점명"]
+    all_columns = df.columns.tolist()
 
     if column_filter:
         col_map = {
@@ -1044,73 +1027,93 @@ async def partner_store_page(
         for key in column_filter:
             selected_cols.extend(col_map.get(key, []))
         selected_cols = list(dict.fromkeys(fixed_columns + selected_cols))
-        df = df[[col for col in selected_cols if col in df.columns]]
     else:
-        df = df[[col for col in fixed_columns if col in df.columns]]
+        selected_cols = fixed_columns
 
-    if "접점코드" in df.columns:
-        df["접점코드"] = df["접점코드"].apply(lambda x: f'<a href="/report?code={x}" target="_blank">{x}</a>')
+    selected_cols = [col for col in selected_cols if col in df.columns]
+    df = df[selected_cols]
 
-    table_html = ""
+    if not filter_value:
+        table_html = df.head(0).to_html(classes="table table-striped", index=False, escape=False)
+    else:
+        df_filtered = df[df[filter_column].astype(str).str.strip() == filter_value]
+        if df_filtered.empty:
+            return HTMLResponse("<p style='color:red; font-size:24px;'>❌ 검색 결과가 없습니다.</p>")
 
-    if show_data:
-        sum_columns = ["목표", "무선", "MIT", "MIT(실적인정)", "MNP", "신동(개통)", "지원금"]
-        base_columns = ["사번", "이름", "지사", "센터", "접점코드", "접점명", "계약시작", "계약종료", "잔여계약일"]
+        sum_cols = ["목표", "무선", "MIT", "MIT(실적인정)", "MNP", "신동(개통)", "지원금"]
+        base_cols = ["사번", "이름", "지사", "센터", "접점코드", "접점명"]
 
         summary = {}
-        for col in df.columns:
-            if col in base_columns:
-                summary[col] = ""
-            elif col in sum_columns:
+        for col in df_filtered.columns:
+            if col in base_cols:
+                summary[col] = "합계" if col == "사번" else ""
+            elif col in sum_cols:
                 try:
-                    numeric_col = pd.to_numeric(df[col], errors='coerce')
-                    value = numeric_col.sum(skipna=True)
-                    summary[col] = value if pd.notnull(value) else 0.0
+                    value = pd.to_numeric(df_filtered[col], errors='coerce').sum()
+                    summary[col] = int(value) if pd.notnull(value) else 0
                 except:
-                    summary[col] = 0.0
+                    summary[col] = 0
             else:
                 summary[col] = ""
 
-        if "달성률" in df.columns:
+        if "달성률" in df_filtered.columns:
             try:
-                무선 = float(summary.get("무선", 0) or 0)
-                mit = float(summary.get("MIT(실적인정)", 0) or 0)
-                목표 = float(summary.get("목표", 0) or 0)
-                if 목표 > 0:
-                    summary["달성률"] = f"{round((무선 + mit) / 목표 * 100, 1)}%"
-                else:
-                    summary["달성률"] = "--"
+                목표 = float(summary.get("목표", 0))
+                무선 = float(summary.get("무선", 0))
+                mit = float(summary.get("MIT(실적인정)", 0))
+                summary["달성률"] = f"{round((무선 + mit) / 목표 * 100, 1)}%" if 목표 > 0 else "--"
+                df_filtered["달성률"] = df_filtered["달성률"].apply(convert_percent)
             except:
                 summary["달성률"] = "--"
 
-            df["달성률"] = df["달성률"].apply(convert_percent)
-
-        if "신동률(개통)" in df.columns:
+        if "신동률(개통)" in df_filtered.columns:
             try:
-                신동 = float(summary.get("신동(개통)", 0) or 0)
-                mnp = float(summary.get("MNP", 0) or 0)
-                if mnp > 0:
-                    summary["신동률(개통)"] = f"{round(신동 / mnp * 100, 1)}%"
-                else:
-                    summary["신동률(개통)"] = "--"
+                신동 = float(summary.get("신동(개통)", 0))
+                mnp = float(summary.get("MNP", 0))
+                summary["신동률(개통)"] = f"{round(신동 / mnp * 100, 1)}%" if mnp > 0 else "--"
+                df_filtered["신동률(개통)"] = df_filtered["신동률(개통)"].apply(convert_percent)
             except:
                 summary["신동률(개통)"] = "--"
 
-            df["신동률(개통)"] = df["신동률(개통)"].apply(convert_percent)
+        # ✅ 강제 2칸 shift 방식
+        # ✅ 강제 왼쪽으로 2칸 이동
+        summary_df = pd.DataFrame([summary])
+        cols = summary_df.columns.tolist()
+        shifted = pd.DataFrame(columns=cols)
 
-        # ✅ 합계 행 삽입
-        summary_row = pd.DataFrame([summary])
-        summary_row.index = ["합계"]
-        df = pd.concat([summary_row, df], ignore_index=False)
+        for i in range(len(cols)):
+            src_index = i + 2
+            val = summary_df.iloc[0, src_index] if src_index < len(cols) else ""
+            shifted.at[0, cols[i]] = val
 
-        # ✅ HTML로 렌더링
-        table_html = df.to_html(classes="table table-striped", index=False, escape=False)
+        summary_df = shifted.copy()
+        df_result = pd.concat([summary_df, df_filtered], ignore_index=True)
 
-        # ✅ 합계 행에 .sum-row 클래스 강제 삽입
+        if "접점코드" in df_result.columns and "센터" in df_result.columns:
+            df_result["접점코드"] = df_result.apply(
+                lambda row: f'<a href="/report?code={row["접점코드"]}&center={row["센터"]}" target="_blank">{row["접점코드"]}</a>',
+                axis=1
+            )
+
+        table_html = df_result.to_html(classes="table table-striped", index=False, escape=False)
         table_html = table_html.replace("<tr>", '<tr class="sum-row">', 1)
 
-    else:
-        table_html = df.head(0).to_html(classes="table table-striped", index=False, escape=False)
+        table_html = table_html.replace('<th>사번</th>', '<th class="sabun-col hidden-col">사번</th>')
+        table_html = table_html.replace('<th>이름</th>', '<th class="name-col hidden-col">이름</th>')
+
+        if "사번" in df_result.columns:
+            for val in df_result["사번"].astype(str).unique():
+                val = val.strip()
+                if val == "" or val == "합계":
+                    continue
+                table_html = table_html.replace(f"<td>{val}</td>", f'<td class="sabun-col hidden-col">{val}</td>')
+
+        if "이름" in df_result.columns:
+            for val in df_result["이름"].astype(str).unique():
+                val = val.strip()
+                if val == "":
+                    continue
+                table_html = table_html.replace(f"<td>{val}</td>", f'<td class="name-col hidden-col">{val}</td>')
 
     return templates.TemplateResponse("partner-store.html", {
         "request": request,
@@ -1119,8 +1122,6 @@ async def partner_store_page(
         "filter_value": filter_value,
         "column_filter": column_filter
     })
-    
-
 @app.get("/daily-wireless", response_class=HTMLResponse)
 def daily_wireless_page(
     request: Request,
@@ -1192,12 +1193,12 @@ def daily_wireless_page(
                     except:
                         sum_row[col] = ""
                 else:
-                    sum_row[col] = ""
+                    sum_row[col] = "합계" if col == "사번" else ""
 
             sum_df = pd.DataFrame([sum_row])
             df = pd.concat([sum_df, df], ignore_index=True)
 
-            # ✅ '합계' 기준 내림차순 정렬 적용
+            # ✅ 정렬
             if "합계" in df.columns:
                 try:
                     df = df.iloc[1:]
@@ -1208,7 +1209,29 @@ def daily_wireless_page(
                     pass
 
             table_html = df.to_html(classes="table sticky-header", index=False, escape=False)
+
+            # ✅ 합계행 class
             table_html = table_html.replace("<tr>", "<tr class=\"sum-row\">", 1)
+
+            # ✅ <th> class 삽입
+            table_html = table_html.replace('<th>사번</th>', '<th class="sabun-col hidden-col">사번</th>')
+            table_html = table_html.replace('<th>이름</th>', '<th class="name-col hidden-col">이름</th>')
+
+            # ✅ <td> class 삽입 (합계 제외)
+            if "사번" in df.columns:
+                for val in df["사번"].astype(str).unique():
+                    val = val.strip()
+                    if val == "" or val == "합계":
+                        continue
+                    table_html = table_html.replace(f"<td>{val}</td>", f'<td class="sabun-col hidden-col">{val}</td>')
+
+            if "이름" in df.columns:
+                for val in df["이름"].astype(str).unique():
+                    val = val.strip()
+                    if val == "":
+                        continue
+                    table_html = table_html.replace(f"<td>{val}</td>", f'<td class="name-col hidden-col">{val}</td>')
+
         else:
             table_html = "<p style='color:red; font-weight:bold;'>❌ 검색 결과가 없습니다.</p>"
 
@@ -1218,7 +1241,6 @@ def daily_wireless_page(
         "search_value": search_value,
         "table_html": table_html
     })
-
 
 @app.get("/daily-wire", response_class=HTMLResponse)
 async def daily_wire_page(
@@ -1290,7 +1312,7 @@ async def daily_wire_page(
                             except:
                                 sum_row[col] = ""
                         else:
-                            sum_row[col] = ""
+                            sum_row[col] = "합계" if col == "사번" else ""
 
                     sum_df = pd.DataFrame([sum_row])
                     df = pd.concat([sum_df, df], ignore_index=True)
@@ -1301,12 +1323,39 @@ async def daily_wire_page(
                             df = df.iloc[1:]  # 합계 제외
                             df[sort_column] = pd.to_numeric(df[sort_column], errors='coerce')
                             df = df.sort_values(by=sort_column, ascending=(sort_order != "desc"))
-                            df = pd.concat([sum_df, df], ignore_index=True)  # 다시 합계 붙이기
+                            df = pd.concat([sum_df, df], ignore_index=True)
                         except:
                             pass
 
+                    # ✅ 테이블 HTML 생성
                     table_html = df.to_html(classes="table sticky-header", index=False, escape=False)
-                    table_html = table_html.replace("<tr>", "<tr class=\"sum-row\">", 1)
+                    table_html = table_html.replace("<tr>", '<tr class="sum-row">', 1)
+
+                    # ✅ <th> class 삽입
+                    table_html = table_html.replace('<th>사번</th>', '<th class="sabun-col hidden-col">사번</th>')
+                    table_html = table_html.replace('<th>이름</th>', '<th class="name-col hidden-col">이름</th>')
+
+                    # ✅ <td> class 삽입 (합계 제외)
+                    if "사번" in df.columns:
+                        for val in df["사번"].dropna().astype(str).unique():
+                            val = val.strip()
+                            if val == "" or val == "합계":
+                                continue
+                            table_html = table_html.replace(
+                                f"<td>{val}</td>",
+                                f'<td class="sabun-col hidden-col">{val}</td>'
+                            )
+
+                    if "이름" in df.columns:
+                        for val in df["이름"].dropna().astype(str).unique():
+                            val = val.strip()
+                            if val == "":
+                                continue
+                            table_html = table_html.replace(
+                                f"<td>{val}</td>",
+                                f'<td class="name-col hidden-col">{val}</td>'
+                            )
+
                 else:
                     table_html = "<p style='color:red; font-weight:bold;'>❌ 검색 결과가 없습니다.</p>"
 
@@ -1323,6 +1372,7 @@ async def daily_wire_page(
         "table_html": table_html,
         "sheet_options": list(sheet_map.keys())
     })
+
 
 @app.get("/model-status", response_class=HTMLResponse)
 async def model_status_page(
@@ -1912,7 +1962,6 @@ async def infra_page(
     filter_value: str = Query(""),
     db: Session = Depends(get_db)
 ):
-    # ✅ 사용자 라벨 ↔ 실제 시트명 매핑 (고정된 다섯 가지 유형)
     SHEET_LABELS = {
         "전월 무선가동점": "전월가동(무선)",
         "전월 유선가동점": "전월가동(유선)",
@@ -1921,14 +1970,13 @@ async def infra_page(
         "전월 신규점": "전월신규점"
     }
 
-    # ✅ StoreData 기준으로 접점코드 → 사번/이름 매핑
     code_map = get_code_to_user_mapping(db) or {}
-    print("✅ code_map 생성 완료:", list(code_map.keys())[:5])
-
     tables = {}
     summary_data = []
 
-    # ✅ 다섯 가지 유형 모두 요약에 표시
+    if not selected_sheets and not filter_value:
+        selected_sheets.append("전월 무선가동점")
+
     for label, sheet_name in SHEET_LABELS.items():
         data_entry = db.query(ExcelData).filter(
             ExcelData.sheet_name == sheet_name
@@ -1944,13 +1992,10 @@ async def infra_page(
             })
             continue
 
-        # ✅ 데이터프레임 로드 및 컬럼 정리
         df = pd.read_json(BytesIO(data_entry.data.encode("utf-8")))
         df.columns = [col.strip().replace(" ", "_") for col in df.columns]
 
-        # 접점코드 → 사번/이름 매핑
         if "접점코드" in df.columns:
-            code_map = get_code_to_user_mapping(db)
             df["사번"] = df.get("사번", "")
             df["이름"] = df.get("이름", "")
             mapped = df["접점코드"].map(code_map).dropna().apply(pd.Series)
@@ -1960,27 +2005,22 @@ async def infra_page(
                 if not df.at[idx, "이름"]:
                     df.at[idx, "이름"] = mapped.at[idx, "이름"]
 
-        # ✅ 필터 적용 (지사, 센터, 접점코드, 사번)
         filtered_df = df.copy()
         if filter_column and filter_value:
             if filter_column in filtered_df.columns:
                 filtered_df = filtered_df[
-                    filtered_df[filter_column].astype(str).str.strip() == filter_value]
-                
-                print(f"✅ '{filter_column}' 필터 적용: {filter_value}")
+                    filtered_df[filter_column].astype(str).str.strip() == filter_value
+                ]
 
-        # ✅ 정렬: 전월무선 또는 전월유선 기준 내림차순 (존재할 경우)
         sort_columns = [col for col in ["전월무선", "전월유선"] if col in filtered_df.columns]
         if sort_columns:
             try:
                 for col in sort_columns:
                     filtered_df[col] = pd.to_numeric(filtered_df[col], errors="coerce")
-                filtered_df = filtered_df.sort_values(by=sort_columns, ascending=False, na_position="last")
-                print(f"✅ {', '.join(sort_columns)} 기준 내림차순 정렬 완료")
-            except Exception as e:
-                print(f"❌ 정렬 오류: {e}")
+                filtered_df = filtered_df.sort_values(by=sort_columns, ascending=False)
+            except:
+                pass
 
-        # ✅ 요약 데이터 생성 (검색된 데이터 기준)
         total_points = len(filtered_df)
         active_points = filtered_df[filtered_df["가동여부"].str.upper() == "O"].shape[0] if "가동여부" in filtered_df.columns else 0
         inactive_points = total_points - active_points
@@ -1994,13 +2034,35 @@ async def infra_page(
             "active_rate": active_rate
         })
 
-        # ✅ 사용자가 선택한 시트만 출력 테이블에 추가
         if label in selected_sheets:
-            tables[label] = filtered_df.to_html(classes="table table-striped", index=False, escape=False)
+            html = filtered_df.to_html(classes="table table-striped", index=False, escape=False)
 
-    # ✅ 기본적으로 '전월 무선가동점' 체크 (초기 진입 시)
-    if not selected_sheets and not filter_value:
-        selected_sheets.append("전월 무선가동점")
+            # ✅ <th>에 class만 삽입 (숨김 X)
+            html = html.replace('<th>사번</th>', '<th class="sabun-col">사번</th>')
+            html = html.replace('<th>이름</th>', '<th class="name-col">이름</th>')
+
+            # ✅ <td>에 class만 삽입 (숨김 X, "합계" 제외)
+            if "사번" in filtered_df.columns:
+                for val in filtered_df["사번"].dropna().astype(str).unique():
+                    val = val.strip()
+                    if val == "" or val == "합계":
+                        continue
+                    html = html.replace(
+                        f"<td>{val}</td>",
+                        f'<td class="sabun-col">{val}</td>'
+                    )
+
+            if "이름" in filtered_df.columns:
+                for val in filtered_df["이름"].dropna().astype(str).unique():
+                    val = val.strip()
+                    if val == "":
+                        continue
+                    html = html.replace(
+                        f"<td>{val}</td>",
+                        f'<td class="name-col">{val}</td>'
+                    )
+
+            tables[label] = html
 
     return templates.TemplateResponse("infra.html", {
         "request": request,
@@ -2011,7 +2073,6 @@ async def infra_page(
         "tables": tables,
         "summary_data": summary_data
     })
-
 
     # main.py (타이틀 수정 라우터)
 

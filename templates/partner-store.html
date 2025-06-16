@@ -3,50 +3,36 @@
 {% block content %}
 {% set column_filter = column_filter if column_filter is not none else [] %}
 
-<h1>🏪 파트너매장 현황</h1>
+<div class="header-bar">
+  <h1 style="margin: 0;">🏪 파트너매장 현황</h1>
+  <button type="button" onclick="location.href='/main'" class="main-btn">🏠 메인으로</button>
+</div>
 
 <form method="get" action="/partner-store" class="search-form">
-    <div class="search-form">
-        <label class="select-wrapper">
-            <select name="filter_column">
-                <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option> 
+    <div class="search-row">
+        <label class="dropdown-wrapper">
+            <select name="filter_column" class="dropdown-select"> 
+                <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option>
                 <option value="지사" {% if filter_column == "지사" %}selected{% endif %}>지사</option>
                 <option value="센터" {% if filter_column == "센터" %}selected{% endif %}>센터</option>
                 <option value="접점코드" {% if filter_column == "접점코드" %}selected{% endif %}>접점코드</option>
             </select>
         </label>
-        <input type="text" name="filter_value" placeholder="검색어 입력" value="{{ filter_value or '' }}">
-        <button type="submit">🔍 검색</button>
-        <button type="button" onclick="location.href='/main'">🏠 메인으로</button>
+        <input type="text" name="filter_value" class="search-input" placeholder="검색어 입력" value="{{ filter_value or '' }}">
+        <button type="submit" class="search-btn">🔍 검색</button>
+        <button type="button" id="toggleBtn" class="toggle-btn" onclick="toggleHiddenColumns()">👁️ 사번/이름 보기</button>
     </div>
 
-    <fieldset style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 20px;">
+    <fieldset style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 20px; font-size: 23px;">
         <legend>✅ 정보 선택하기</legend>
-        <label>
-            <input type="checkbox" name="column_filter" value="실적확인"
-                   onclick="handleCheckbox(this)"
-                   {% if "실적확인" in column_filter %}checked{% endif %}>
-            실적확인
-        </label>
-
-        <label>
-            <input type="checkbox" name="column_filter" value="파트너 정보"
-                   onclick="handleCheckbox(this)"
-                   {% if "파트너 정보" in column_filter %}checked{% endif %}>
-            파트너 정보
-        </label>
-
-        <label>
-            <input type="checkbox" name="column_filter" value="모두보기"
-                   onclick="handleCheckbox(this)"
-                   {% if "모두보기" in column_filter %}checked{% endif %}>
-            모두보기
-        </label>
+        <label><input type="checkbox" name="column_filter" value="실적확인" onclick="handleCheckbox(this)" {% if "실적확인" in column_filter %}checked{% endif %}> 실적확인</label>
+        <label><input type="checkbox" name="column_filter" value="파트너 정보" onclick="handleCheckbox(this)" {% if "파트너 정보" in column_filter %}checked{% endif %}> 파트너 정보</label>
+        <label><input type="checkbox" name="column_filter" value="모두보기" onclick="handleCheckbox(this)" {% if "모두보기" in column_filter %}checked{% endif %}> 모두보기</label>
     </fieldset>
 </form>
 
 <hr>
-<div class="table-wrapper">
+<div class="table-wrapper" id="tableWrapper">
   <div style="position: relative;">
     {{ table_html|safe }}
   </div>
@@ -70,192 +56,126 @@ function handleCheckbox(clicked) {
     }
 }
 
-// 텍스트 길이를 고려해 연속성 여백 초기화
-function adjustStickyColumnWidths() {
-    const colIndices = [3, 4, 5, 6];
-    const table = document.querySelector(".table");
-    if (!table) return;
+function toggleHiddenColumns() {
+    const sabuns = document.querySelectorAll('.sabun-col');
+    const names = document.querySelectorAll('.name-col');
+    const btn = document.getElementById('toggleBtn');
 
-    const rows = table.querySelectorAll("tr");
-    const widths = [];
+    const currentlyHidden = sabuns.length > 0 && sabuns[0].classList.contains('hidden-col');
 
-    colIndices.forEach((colIdx) => {
-        let maxWidth = 0;
-        rows.forEach(row => {
-            const cell = row.cells[colIdx - 1];
-            if (cell) {
-                const textLength = cell.textContent.trim().replace(/\s+/g, '').length;
-                const width = textLength * 10 + 40;
-                if (width > maxWidth) maxWidth = width;
-            }
-        });
-        widths.push(maxWidth);
-    });
+    sabuns.forEach(el => el.classList.toggle('hidden-col'));
+    names.forEach(el => el.classList.toggle('hidden-col'));
 
-    let leftOffset = 0;
-    colIndices.forEach((colIdx, i) => {
-        const width = widths[i];
-        rows.forEach(row => {
-            const cell = row.cells[colIdx - 1];
-            if (cell) {
-                cell.style.minWidth = `${width}px`;
-                cell.style.maxWidth = `${width}px`;
-                cell.style.width = `${width}px`;
-                cell.style.left = `${leftOffset}px`;
-                cell.style.position = 'sticky';
-                cell.style.zIndex = 10;
+    btn.innerText = currentlyHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
 
-                if (cell.tagName === 'TH') {
-                    cell.style.background = '#f2f2f2';
-                } else {
-                    cell.style.background = '#fff';
-                }
-            }
-        });
-        leftOffset += width;
-    });
+    const wrapper = document.getElementById('tableWrapper');
+    if (wrapper) wrapper.scrollLeft = 0;
 }
 
-window.addEventListener("load", adjustStickyColumnWidths);
+// ✅ 사번/이름을 기본 보이도록 설정
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.sabun-col, .name-col').forEach(el => {
+    el.style.display = '';  // 기본 보임
+  });
+});
 </script>
 
 <style>
-.table th,
-.table td {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.hidden-col {
+    display: none !important;
 }
-
-.table th:nth-child(3),
-.table td:nth-child(3),
-.table th:nth-child(4),
-.table td:nth-child(4) {
-    padding-left: 0.1px !important;
-    padding-right: 0.1px !important;
-}
-
-.search-form {
+.header-bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    justify-content: space-between;
     align-items: center;
-    font-size: 28px;
+    flex-wrap: wrap;
     width: 100%;
 }
-
-.search-form select,
-.search-form input[type="text"],
-.search-form button {
-    height: 60px;
-    font-size: 24px;
-    padding: 10px;
-    flex: 1 1 auto;
+.search-form {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
 }
-
-.select-wrapper {
-    flex: 2;
-    min-width: 150px;
+.search-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    width: 100%;
+    gap: 8px;
 }
-
-.search-form input[type="text"] {
-    flex: 6;
-    min-width: 200px;
+.dropdown-select,
+.search-input,
+.search-btn,
+.toggle-btn {
+    flex: 1;
+    height: 40px;
+    font-size: 16px;
+    padding: 4px 8px;
+    box-sizing: border-box;
+    min-width: 0;
 }
-
-.search-form button {
-    flex: 2;
-    min-width: 120px;
-}
-
-.table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-top: 20px;
-    border-top: 2px solid #333;
-}
-
-.table {
-    border-collapse: collapse;
-    min-width: 1000px;
-    width: max-content;
-    margin: auto;
-    font-size: 20px;
-    table-layout: fixed;
-}
-
-.table th,
-.table td {
-    border: 1px solid #ccc;
-    padding: 1px 5px;
-    height: 32px;
-    text-align: center;
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: ellipsis;
-}
-
-.table th:nth-child(1), .table td:nth-child(1),
-.table th:nth-child(2), .table td:nth-child(2) {
-    display: none;
-}
-
-
-.table th {
-    background-color: #f2f2f2 !important;
-    color: #000;
+.search-btn {
+    background-color: #64b5f6;
+    color: #fff;
     font-weight: bold;
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
-
-input[type="checkbox"] {
-    width: 23px;
-    height: 23px;
-    transform: scale(1.4);  /* 좀 더 키우고 싶다면 숫자를 늘리면 됩니다 */
-    margin-right: 10px;     /* 텍스트와의 간격 */
+.toggle-btn {
+    background-color: #e53935;
+    color: #fff;
+    font-weight: bold;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
-
-
-.table td:nth-child(3) { left: 0; width: 40px; min-width: 40px; }
-.table td:nth-child(4) { left: 40px; width: 40px; min-width: 40px; }
-.table td:nth-child(5) { left: 80px; width: 120px; min-width: 120px; }
-.table td:nth-child(6) { left: 200px; width: 120px; min-width: 120px; }
-
-.table th:nth-child(3) { left: 0; width: 40px; min-width: 40px; }
-.table th:nth-child(4) { left: 40px; width: 40px; min-width: 40px; }
-.table th:nth-child(5) { left: 80px; width: 120px; min-width: 120px; }
-.table th:nth-child(6) { left: 200px; width: 120px; min-width: 120px; }
-
-
-.table tr.sum-row td {
-    background-color: #e0f7fa !important;
-    font-weight: bold !important;
-    color: #000 !important;
+.toggle-btn:hover {
+    background-color: #c62828;
 }
-
-.table tr.sum-row td:nth-child(-n+6) {
-    color: transparent !important;
+.main-btn {
+    background-color: #4CAF50;
+    color: white;
+    font-size: 16px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
-
+.table-wrapper table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    margin-top: 12px;
+}
+.table-wrapper th,
+.table-wrapper td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: center;
+}
+.table-wrapper tr.sum-row td {
+    background-color: #fffacc !important;
+    font-weight: bold;
+    color: #000;
+}
 @media (max-width: 768px) {
-    .search-form {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-    .search-form > * {
-        flex: 1 1 100%;
-    }
-    .table {
-        font-size: 12px;
-    }
-    .table th,
-    .table td {
-        padding: 4px 6px;
-        white-space: normal !important;
-        overflow: visible !important;
-    }
+  .search-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .dropdown-select,
+  .search-input,
+  .search-btn,
+  .toggle-btn {
+    flex: 1 1 48%;
+  }
+  .main-btn {
+    margin-top: 8px;
+    width: 100%;
+  }
 }
 </style>
 {% endblock %}

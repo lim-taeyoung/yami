@@ -5,7 +5,7 @@
     <button type="button" style="float: right;" onclick="location.href='/main'">🏠 메인으로</button>
 </h1>
 
-<!-- ✅ 체크박스 영역 (위) -->
+<!-- ✅ 체크박스 영역 -->
 <form method="get" action="/infra" class="search-form">
     <fieldset style="display: flex; flex-wrap: wrap; gap: 15px;">
         <legend>📌 유형 선택</legend>
@@ -19,8 +19,7 @@
         {% endfor %}
     </fieldset>
 
-
-    <!-- ✅ 검색 영역 (아래) -->
+    <!-- ✅ 검색 영역 (가로 4등분) -->
     <div class="search-row">
         <select name="filter_column" class="search-dropdown">
             <option value="사번" {% if filter_column == "사번" %}selected{% endif %}>사번</option> 
@@ -28,15 +27,17 @@
             <option value="센터" {% if filter_column == "센터" %}selected{% endif %}>센터</option>
             <option value="접점코드" {% if filter_column == "접점코드" %}selected{% endif %}>접점코드</option>
         </select>
-        <input type="text" name="filter_value" placeholder="검색어 입력" 
-               value="{{ filter_value or '' }}" class="search-input">
+        <input type="text" name="filter_value" placeholder="검색어 입력" value="{{ filter_value or '' }}" class="search-input">
         <button type="submit" class="search-button">🔍 검색</button>
+        <button type="button" id="toggleBtn" class="toggle-button" onclick="toggleHiddenColumns()">👁️ 사번/이름 보기</button>
     </div>
+
+    <input type="hidden" name="sort_column" value="합계">
+    <input type="hidden" name="sort_order" value="desc">
 </form>
 
 <hr>
 
-<!-- ✅ 요약 테이블 (항상 다섯 가지 유형) -->
 <div class="summary-table" style="margin-top: 20px;">
     <h2>📊 요약 현황</h2>
     <table class="table table-summary">
@@ -65,7 +66,6 @@
 
 <hr>
 
-<!-- ✅ 출력 테이블 -->
 {% if tables %}
     {% for label, html in tables.items() %}
         <h2 style="margin-top: 40px;">📄 {{ label }}</h2>
@@ -79,51 +79,25 @@
     <p style="margin-top: 30px;">✅ 유형을 선택하고 검색어를 입력해 결과를 확인하세요.</p>
 {% endif %}
 
-
-
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".table-container table").forEach(table => {
-        const headers = table.querySelectorAll("th");
-        let gadowIndex = -1;
-        let separatorIndex = -1;
+function toggleHiddenColumns() {
+  const sabuns = document.querySelectorAll('.sabun-col');
+  const names = document.querySelectorAll('.name-col');
+  const isHidden = sabuns.length > 0 && sabuns[0].classList.contains('hidden-col');
 
-        headers.forEach((header, index) => {
-            const headerText = header.innerText.trim();
-            
-            // ✅ "구분자" 컬럼 자동 숨김
-            if (headerText === "구분자") {
-                separatorIndex = index;
-                header.style.display = "none";
-            }
+  sabuns.forEach(el => el.classList.toggle('hidden-col'));
+  names.forEach(el => el.classList.toggle('hidden-col'));
 
-            // ✅ "가동여부" 컬럼 인덱스 확인
-            if (headerText.includes("가동여부")) {
-                gadowIndex = index;
-            }
-        });
+  const btn = document.getElementById('toggleBtn');
+  btn.innerText = isHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
+}
 
-        // ✅ 각 행에서 처리
-        table.querySelectorAll("tr").forEach(row => {
-            if (separatorIndex >= 0) {
-                const cell = row.children[separatorIndex];
-                if (cell) {
-                    cell.style.display = "none";
-                }
-            }
-
-            // ✅ "가동여부" 컬럼 O 표시 색상 변경
-            if (gadowIndex >= 0) {
-                const cell = row.children[gadowIndex];
-                if (cell && cell.innerText.trim().toUpperCase() === "O") {
-                    cell.classList.add("highlight-green");
-                }
-            }
-        });
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('.sabun-col, .name-col').forEach(el => {
+    el.classList.remove('hidden-col');
+  });
 });
 
-// ✅ 체크박스 클릭 시 다른 체크박스 자동 해제
 function handleCheckboxClick(clicked) {
     document.querySelectorAll('input[name="selected_sheets"]').forEach(checkbox => {
         if (checkbox !== clicked) checkbox.checked = false;
@@ -132,95 +106,61 @@ function handleCheckboxClick(clicked) {
 </script>
 
 <style>
-/* ✅ 강제 적용되는 연두색 스타일 (우선 적용) */
-.highlight-green {
-    background-color: #ccf392 !important;
-    color: #000 !important;
-    font-weight: bold !important;
-}
-/* ✅ 사번/이름 컬럼 자동 숨김 */
-.table-container table th:nth-child(1),
-.table-container table td:nth-child(1),
-.table-container table th:nth-child(2),
-.table-container table td:nth-child(2) {
-    display: none;
-}
-
-
-/* ✅ 검색 영역 스타일 통일 */
-.search-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: nowrap;
-    margin-top: 15px;
-}
-
-.search-dropdown, .search-input, .search-button {
-    height: 40px;
-    font-size: 16px;
-}
-
-.table-container table {
-    font-size: var(--font-size, 16px);
-    width: 100%;
-}
-
-.table-container table tr {
-    height: var(--row-height, 40px);
-}
-
-/* ✅ 요약 테이블 스타일 */
-.summary-table {
-    margin-top: 10px; /* 상단 여백 (기존 20px → 10px으로 줄임) */
-    font-size: 20px;  /* 폰트 크기 20px */
-    line-height: 1.2; /* 줄간격 조절 (기본값보다 살짝 줄임) */
-}
-
-.summary-table th, 
-.summary-table td {
-    padding: 6px 10px; /* 셀 상하 여백 줄임 */
-    text-align: center;
-}
-
-/* ✅ 본 테이블 스타일 */
-.table-container table {
-    font-size: 20px; /* 폰트 크기 20px */
-    width: 100%;
-    margin-top: 10px; /* 상단 여백 (기존 40px → 10px으로 줄임) */
-}
-
-.table-container table th, 
-.table-container table td {
-    padding: 6px 10px; /* 셀 상하 여백 줄임 */
-    text-align: center;
-}
-
-.table-container table tr {
-    height: auto; /* 높이를 자동으로 (콘텐츠에 맞게) */
+.hidden-col {
+  display: none !important;
 }
 
 .search-row {
-    display: flex;
-    width: 100%;
-    gap: 0; /* 요소 사이 간격 제거 (필요 시 margin 사용) */
-    margin-top: 15px;
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  margin-top: 15px;
 }
 
 .search-dropdown,
 .search-input,
-.search-button {
-    flex: 1;
-    height: 40px;
-    font-size: 16px;
-    box-sizing: border-box; /* padding 포함한 width 계산 */
-    margin-right: 5px; /* 각 요소 간 약간의 간격 */
+.search-button,
+.toggle-button {
+  flex: 1 1 25%;
+  height: 40px;
+  font-size: 16px;
+  box-sizing: border-box;
 }
 
-/* 마지막 요소는 오른쪽 여백 제거 */
-.search-button {
-    margin-right: 0;
+.toggle-button {
+  background-color: #e53935;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
+.toggle-button:hover {
+  background-color: #c62828;
+}
+
+.search-button {
+  background-color: #64b5f6;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.table-container table th:nth-child(1),
+.table-container table td:nth-child(1),
+.table-container table th:nth-child(2),
+.table-container table td:nth-child(2) {
+  display: none;
+}
+
+.highlight-green {
+  background-color: #ccf392 !important;
+  color: #000 !important;
+  font-weight: bold !important;
+}
 </style>
 
 {% endblock %}
