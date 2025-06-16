@@ -36,19 +36,31 @@
         color: #000000;
     }
     .top-right-button {
-        position: absolute;
-        top: 20px;
-        right: 20px;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px; /* 버튼 사이 간격 */
     }
-    .top-right-button button {
+
+    /* 공통 스타일 */
+    .top-right-button a button {
         padding: 20px 24px;
         font-size: 22px;
         font-weight: 900;
-        background-color: var(--orange);
-        color: rgb(0, 0, 0);
         border: none;
         border-radius: 8px;
         cursor: pointer;
+    }
+
+    /* 각각 다른 색상 */
+    .btn-main button {
+        background-color: rgb(63, 58, 58);
+        color: #ffffff;
+    }
+    .btn-store button {
+        background-color: rgb(46, 42, 165);
+        color: #ffffff;
     }
     .section-title {
         font-size: 26px;
@@ -65,10 +77,12 @@
         background-color: var(--orange);
         color: #000;
     }
+
 </style>
 
 <div class="top-right-button">
-    <a href="/main"><button>🏠 메인으로</button></a>
+    <a href="/main" class="btn-main"><button>🏠 메인으로</button></a>
+    <a href="/store" class="btn-store"><button>➕ 사번/이름 매핑하러가기</button></a>
 </div>
 
 <h1>📄 접점 상세 정보</h1>
