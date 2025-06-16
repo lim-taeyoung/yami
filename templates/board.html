@@ -127,6 +127,15 @@
     justify-content: space-between;
     align-items: center;
   }
+    .delete-btn {
+    background-color: #e53935;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 20px;
+    cursor: pointer;
+  }
 </style>
 
 <div class="top-bar">
@@ -164,7 +173,7 @@
       {% endfor %}
     </div>
     {% endif %}
-    <div class="text"> {{ msg.text }}</div>
+    <div class="text">{{ msg.text }}</div>
   </div>
 
   {% if msg.replies %}
@@ -174,6 +183,13 @@
     <div class="reply">💬 <strong>{{ reply.user }}</strong>: {{ reply.text }}</div>
     {% endfor %}
   </div>
+  {% endif %}
+
+  {% if user.role == 'admin' or msg.user == (user.team2 ~ ' ' ~ user.name) %}
+  <form method="post" action="/board/delete" onsubmit="return confirm('정말 삭제하시겠습니까?');" style="margin-top: 8px;">
+    <input type="hidden" name="msg_id" value="{{ msg.id }}">
+    <button type="submit" class="delete-btn">🗑️ 삭제</button>
+  </form>
   {% endif %}
 
   <form class="reply-form" method="post" action="/board/reply">
