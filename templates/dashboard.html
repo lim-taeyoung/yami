@@ -190,6 +190,9 @@ fieldset legend {
 .toggle-columns-btn:hover {
     background-color: #c62828;
 }
+  .hidden-col {
+    display: none !important;
+  }
 </style>
 
 <div class="dashboard-wrapper">
@@ -275,15 +278,29 @@ function uncheckAll() {
 }
 
 function toggleHiddenColumns() {
-    const sabuns = document.querySelectorAll('.sabun-col');
-    const names = document.querySelectorAll('.name-col');
-    const isHidden = sabuns.length > 0 && getComputedStyle(sabuns[0]).visibility === 'hidden';
+    const allRows = document.querySelectorAll('.table tr');
+    const headerCells = allRows[0]?.querySelectorAll('th') || [];
 
-    sabuns.forEach(el => el.classList.toggle('hidden-col'));
-    names.forEach(el => el.classList.toggle('hidden-col'));
+    let sabunIdx = -1, nameIdx = -1;
+
+    // 사번, 이름 컬럼 인덱스를 찾음
+    headerCells.forEach((cell, i) => {
+        const text = cell.textContent.trim();
+        if (text.includes('사번')) sabunIdx = i;
+        if (text.includes('이름')) nameIdx = i;
+    });
+
+    // 토글 대상 여부 판단
+    const isCurrentlyHidden = headerCells[sabunIdx]?.classList.contains('hidden-col');
+
+    allRows.forEach(row => {
+        const cells = row.children;
+        if (sabunIdx >= 0 && cells[sabunIdx]) cells[sabunIdx].classList.toggle('hidden-col', !isCurrentlyHidden);
+        if (nameIdx >= 0 && cells[nameIdx]) cells[nameIdx].classList.toggle('hidden-col', !isCurrentlyHidden);
+    });
 
     const btn = document.getElementById('toggleBtn');
-    btn.innerText = isHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
+    btn.innerText = isCurrentlyHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
 
     updateStickyLefts();
     adjustTableMargin();

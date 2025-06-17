@@ -30,15 +30,33 @@
 
 <script>
 function toggleHiddenColumns() {
-    const sabuns = document.querySelectorAll('.sabun-col');
-    const names = document.querySelectorAll('.name-col');
-    const isHidden = sabuns.length > 0 && sabuns[0].classList.contains('hidden-col');
+    const allRows = document.querySelectorAll('.table tr');
+    const headerCells = allRows[0]?.querySelectorAll('th') || [];
 
-    sabuns.forEach(el => el.classList.toggle('hidden-col'));
-    names.forEach(el => el.classList.toggle('hidden-col'));
+    let sabunIdx = -1, nameIdx = -1;
+
+    // 헤더 텍스트 기준으로 사번/이름 컬럼 위치 찾기
+    headerCells.forEach((cell, i) => {
+        const text = cell.textContent.trim();
+        if (text.includes('사번')) sabunIdx = i;
+        if (text.includes('이름')) nameIdx = i;
+    });
+
+    const isCurrentlyHidden = headerCells[sabunIdx]?.classList.contains('hidden-col');
+
+    // 모든 행에서 해당 인덱스의 셀에 hidden-col 토글
+    allRows.forEach(row => {
+        const cells = row.children;
+        if (sabunIdx >= 0 && cells[sabunIdx]) {
+            cells[sabunIdx].classList.toggle('hidden-col', !isCurrentlyHidden);
+        }
+        if (nameIdx >= 0 && cells[nameIdx]) {
+            cells[nameIdx].classList.toggle('hidden-col', !isCurrentlyHidden);
+        }
+    });
 
     const btn = document.getElementById('toggleBtn');
-    btn.innerText = isHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
+    btn.innerText = isCurrentlyHidden ? '👁️ 사번/이름 숨기기' : '👁️ 사번/이름 보기';
 }
 
 document.addEventListener("DOMContentLoaded", () => {
