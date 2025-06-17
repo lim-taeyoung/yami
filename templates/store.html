@@ -321,19 +321,41 @@
     document.getElementById('download-center-hidden').value = center;
     return true;
   }
- function addNewRow() {
-  const table = document.querySelector("#store-table tbody");
-  const newRow = document.createElement("tr");
-  newRow.classList.add("new-row");
+  function addNewRow() {
+    const table = document.querySelector("#store-table tbody");
+    const newRow = document.createElement("tr");
+    newRow.classList.add("new-row");
 
-  newRow.innerHTML = `
-    <td><button type="submit" class="action-button blue">💾 저장</button></td>
-    {% for col in columns %}
-      <td><input type="text" name="new_{{ col }}" placeholder="{{ col }}"></td>
-    {% endfor %}
-  `;
-  table.prepend(newRow);  // 위에 추가할 경우 prepend / 아래는 appendChild
+    newRow.innerHTML = `
+      <td><button type="submit" class="action-button blue">💾 저장</button></td>
+      {% for col in columns %}
+        <td><input type="text" name="new_{{ col }}" placeholder="{{ col }}"></td>
+      {% endfor %}
+    `;
+    table.prepend(newRow);
   }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".edit-button").forEach(button => {
+      button.addEventListener("click", () => {
+        const code = button.dataset.code;
+        const row = document.querySelector(`tr[data-code='${code}']`);
+        const cells = row.querySelectorAll("td.cell");
+
+        cells.forEach(cell => {
+          const col = cell.dataset.col;
+          const val = cell.textContent.trim();
+          cell.innerHTML = `<input type="text" name="${code}_${col}" value="${val}" style="width: 100%; font-size: 20px;" />`;
+        });
+
+        button.outerHTML = `<button type="submit" class="action-button blue">💾 저장</button>`;
+
+        const form = document.getElementById("store-form");
+        form.action = "/store/update";
+        form.method = "post";
+      });
+    });
+  });
 </script>
 
 
